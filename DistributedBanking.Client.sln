@@ -3,11 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34408.163
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DistributedBanking.API", "DistributedBanking.API\DistributedBanking.API.csproj", "{0DB01F7C-31C8-4FF9-BBEB-887583714B45}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DistributedBanking.Client.API", "DistributedBanking.Client.API\DistributedBanking.Client.API.csproj", "{0DB01F7C-31C8-4FF9-BBEB-887583714B45}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Submodules", "Submodules", "{930BC173-ADEA-4126-A1BC-D56FCCCF42F9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Contracts", "DistributedBanking.Shared\Contracts\Contracts.csproj", "{9916A784-7034-4B4C-B0DB-3E7757D69926}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DistributedBanking.Client.Domain", "DistributedBanking.Client.Domain\DistributedBanking.Client.Domain.csproj", "{5B2D902F-9CD9-4A0B-9F42-C56BBFB201B6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DistributedBanking.Client.Data", "DistributedBanking.Client.Data\DistributedBanking.Client.Data.csproj", "{07382FC9-3519-445E-A900-7442F95C8050}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tools", "DistributedBanking.Shared\Tools\Tools.csproj", "{5166EF35-76B1-4626-92CE-D32A32F8E456}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,12 +29,25 @@ Global
 		{9916A784-7034-4B4C-B0DB-3E7757D69926}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9916A784-7034-4B4C-B0DB-3E7757D69926}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9916A784-7034-4B4C-B0DB-3E7757D69926}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B2D902F-9CD9-4A0B-9F42-C56BBFB201B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B2D902F-9CD9-4A0B-9F42-C56BBFB201B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B2D902F-9CD9-4A0B-9F42-C56BBFB201B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B2D902F-9CD9-4A0B-9F42-C56BBFB201B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07382FC9-3519-445E-A900-7442F95C8050}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07382FC9-3519-445E-A900-7442F95C8050}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07382FC9-3519-445E-A900-7442F95C8050}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07382FC9-3519-445E-A900-7442F95C8050}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5166EF35-76B1-4626-92CE-D32A32F8E456}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5166EF35-76B1-4626-92CE-D32A32F8E456}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5166EF35-76B1-4626-92CE-D32A32F8E456}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5166EF35-76B1-4626-92CE-D32A32F8E456}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{9916A784-7034-4B4C-B0DB-3E7757D69926} = {930BC173-ADEA-4126-A1BC-D56FCCCF42F9}
+		{5166EF35-76B1-4626-92CE-D32A32F8E456} = {930BC173-ADEA-4126-A1BC-D56FCCCF42F9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {73908C15-D326-4925-A037-C6B20BBC6474}
