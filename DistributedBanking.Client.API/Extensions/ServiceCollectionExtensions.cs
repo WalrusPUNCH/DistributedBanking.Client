@@ -9,13 +9,18 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
-using Newtonsoft.Json.Converters;
-using Refit;
-using System.Globalization;
 using System.Reflection;
 using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
+using DistributedBanking.Client.Data.Repositories;
+using DistributedBanking.Client.Data.Repositories.Base;
+using DistributedBanking.Client.Data.Repositories.Implementation;
+using DistributedBanking.Client.Data.Services;
+using DistributedBanking.Client.Data.Services.Implementation.MongoDb;
+using DistributedBanking.Client.Domain.Models.Transaction;
+using DistributedBanking.Client.Domain.Services;
+using DistributedBanking.Client.Domain.Services.Implementation;
+using Shared.Data.Entities;
 
 namespace DistributedBanking.API.Extensions;
 
@@ -36,7 +41,8 @@ public static class ServiceCollectionExtensions
                 x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
                 x.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(x =>
+            })
+            .AddJwtBearer(x =>
             {
                 x.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -50,13 +56,11 @@ public static class ServiceCollectionExtensions
                 };
             });
         
-        services.AddAuthorization();
-        
         services
+            .AddAuthorization()
             .AddEndpointsApiExplorer()
-            .AddHttpContextAccessor();
-        
-        services.AddMapster();
+            .AddHttpContextAccessor()
+            .AddMapster();
         
         return services;
     }
@@ -118,23 +122,16 @@ public static class ServiceCollectionExtensions
     {
         services
             .AddMongoDatabase(configuration)
-            .AddDataRepositories(configuration);
-        
-        services.AddTransient<IAccountService, AccountService>();
+            .AddDataRepositories();
 
-        
-            services.AddMongoIdentity(configuration);
+        services.AddTransient<IRolesManager, RolesManager>()
+            .AddTransient<IUserManager, UserManager>()
+            .AddTransient<IAccountService, AccountService>()
+            .AddTransient<IPasswordHashingService, PasswordHashingService>()
+            .AddTransient<ITokenService, TokenService>()
+            .AddTransient<IIdentityService, IdentityService>()
+            .AddTransient<ITransactionService, TransactionService>();
 
-            services.AddTransient<ITokenService, TokenService>();
-            services.AddTransient<IIdentityService, IdentityService>();
-            services.AddTransient<ITransactionService, TransactionService>();
-        
-        return services;
-    }
-
-    internal static IServiceCollection AddBackgroundServices(this IServiceCollection services, IConfiguration configuration)
-    {
-       
         return services;
     }
 
@@ -142,7 +139,7 @@ public static class ServiceCollectionExtensions
     {
         TypeAdapterConfig<TransactionEntity, TransactionResponseModel>.NewConfig()
             .Map(dest => dest.Timestamp, src => src.DateTime);
-
+        
         TypeAdapterConfig<ObjectId, string>.NewConfig()
             .MapWith(objectId => objectId.ToString());
 
@@ -157,7 +154,7 @@ public static class ServiceCollectionExtensions
        var databaseOptions = configuration.GetSection(nameof(DatabaseOptions)).Get<DatabaseOptions>();
         ArgumentNullException.ThrowIfNull(databaseOptions);
 
-        services.AddSingleton<IMongoDbFactory>(new MongoDbFactory(databaseOptions.ReplicaSetConnectionString, databaseOptions.DatabaseName));
+        services.AddSingleton<IMongoDbFactory>(new MongoDbFactory(databaseOptions.ConnectionString, databaseOptions.DatabaseName));
 
         var pack = new ConventionPack
         {
@@ -172,85 +169,18 @@ public static class ServiceCollectionExtensions
 
        return services;
     }
-
-    private static IServiceCollection AddMongoIdentity(this IServiceCollection services, IConfiguration configuration)
-    {
-        var databaseOptions = configuration.GetSection(nameof(DatabaseOptions)).Get<DatabaseOptions>();
-        ArgumentNullException.ThrowIfNull(databaseOptions);
-        
-        services.AddIdentity<ApplicationUser, ApplicationRole>(identityOptions => 
-            { 
-                // Password settings
-                identityOptions.Password.RequiredLength = 8;
-                identityOptions.Password.RequireLowercase = true; 
-                identityOptions.Password.RequireUppercase = true; 
-                identityOptions.Password.RequireNonAlphanumeric = false; 
-                identityOptions.Password.RequireDigit = true;
-
-                // Lockout settings
-                identityOptions.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
-                identityOptions.Lockout.MaxFailedAccessAttempts = 10;
-
-                // User settings
-                identityOptions.User.RequireUniqueEmail = true;
-                identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@.-_";
-            })
-            .AddMongoDbStores<ApplicationUser, ApplicationRole, ObjectId>(
-                databaseOptions.ReplicaSetConnectionString, databaseOptions.DatabaseName);
-        
-        return services;
-    }
     
-    private static IServiceCollection AddDataRepositories(this IServiceCollection services, IConfiguration configuration)
+    private static IServiceCollection AddDataRepositories(this IServiceCollection services)
     {
         services.AddTransient(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
-
-        var transactionalClockOptions = configuration.GetSection(nameof(TransactionalClockOptions)).Get<TransactionalClockOptions>();
-        ArgumentNullException.ThrowIfNull(transactionalClockOptions);
         
-        if (transactionalClockOptions.UseTransactionalClock)
-        {
-            services.AddTransient<IUsersTcRepository, UsersTcRepository>();
-            services.AddTransient<IRolesTcRepository, RolesTcRepository>();
-            services.AddTransient<IAccountsRepository, AccountsTcRepository>();
-            services.AddTransient<ICustomersRepository, CustomersTcRepository>();
-            services.AddTransient<IWorkersRepository, WorkersTcRepository>();
-            services.AddTransient<ITransactionsRepository, TransactionsTcRepository>();
-        }
-        else
-        { 
-            services.AddTransient<IAccountsRepository, AccountsRepository>();
-            services.AddTransient<ICustomersRepository, CustomersRepository>();
-            services.AddTransient<IWorkersRepository, WorkersRepository>();
-            services.AddTransient<ITransactionsRepository, TransactionsRepository>();
-        }
+        services.AddTransient<IUsersRepository, UsersRepository>();
+        services.AddTransient<IRolesRepository, RolesRepository>();
+        services.AddTransient<IAccountsRepository, AccountsRepository>();
+        services.AddTransient<ICustomersRepository, CustomersRepository>();
+        services.AddTransient<IWorkersRepository, WorkersRepository>();
+        services.AddTransient<ITransactionsRepository, TransactionsRepository>();
         
-        return services;
-    }
-
-    private static IServiceCollection AddTransactionalClockIntegration(this IServiceCollection services, IConfiguration configuration)
-    {
-        var transactionalClockOptions = configuration.GetSection(nameof(TransactionalClockOptions)).Get<TransactionalClockOptions>();
-        ArgumentNullException.ThrowIfNull(transactionalClockOptions);
-
-        IsoDateTimeConverter converter = new IsoDateTimeConverter
-        {
-            DateTimeStyles = DateTimeStyles.AdjustToUniversal,
-            DateTimeFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ssK"
-        };
-        
-        var refitSettings = new RefitSettings
-        {
-            ContentSerializer = new SystemTextJsonContentSerializer(new JsonSerializerOptions
-            {
-                Converters = { new ObjectIdJsonConverter() }
-            })
-        }; 
-        
-        services
-            .AddRefitClient<ITransactionalClockClient>(refitSettings)
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri(transactionalClockOptions.TransactionalClockHostUrl));
-
         return services;
     }
 }

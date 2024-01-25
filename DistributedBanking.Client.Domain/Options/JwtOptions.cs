@@ -1,3 +1,8 @@
 ﻿namespace DistributedBanking.Client.Domain.Options;
 
-public record JwtOptions(string Issuer, string Audience, string Key);
+public class JwtOptions
+{
+   public string Issuer { get; init; }
+    public string Audience { get; init; }
+    public string Key { get; init; }
+}

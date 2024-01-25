@@ -2,5 +2,4 @@
 
 public record DatabaseOptions(
     string ConnectionString,
-    string ReplicaSetConnectionString,
     string DatabaseName);
