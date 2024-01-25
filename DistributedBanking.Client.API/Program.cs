@@ -6,7 +6,6 @@ var configuration = builder.Configuration;
 builder.Services
     .AddApi(configuration)
     .AddSwagger()
-    .AddBackgroundServices(configuration)
     .AddServices(configuration)
     .ConfigureOptions(configuration);
 
