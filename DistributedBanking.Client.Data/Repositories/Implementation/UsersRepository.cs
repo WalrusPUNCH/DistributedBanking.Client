@@ -1,9 +1,9 @@
 ﻿using Contracts.Extensions;
 using DistributedBanking.Client.Data.Repositories.Base;
-using DistributedBanking.Client.Data.Services;
 using MongoDB.Driver;
 using Shared.Data.Entities.Constants;
 using Shared.Data.Entities.Identity;
+using Shared.Data.Services;
 
 namespace DistributedBanking.Client.Data.Repositories.Implementation;
 

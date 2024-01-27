@@ -1,5 +1,11 @@
 ﻿using DistributedBanking.API.Helpers;
+using DistributedBanking.Client.Data.Repositories;
+using DistributedBanking.Client.Data.Repositories.Base;
+using DistributedBanking.Client.Data.Repositories.Implementation;
+using DistributedBanking.Client.Domain.Models.Transaction;
 using DistributedBanking.Client.Domain.Options;
+using DistributedBanking.Client.Domain.Services;
+using DistributedBanking.Client.Domain.Services.Implementation;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -9,18 +15,12 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Bson.Serialization.Serializers;
+using Shared.Data.Entities;
+using Shared.Data.Services;
+using Shared.Data.Services.Implementation.MongoDb;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
-using DistributedBanking.Client.Data.Repositories;
-using DistributedBanking.Client.Data.Repositories.Base;
-using DistributedBanking.Client.Data.Repositories.Implementation;
-using DistributedBanking.Client.Data.Services;
-using DistributedBanking.Client.Data.Services.Implementation.MongoDb;
-using DistributedBanking.Client.Domain.Models.Transaction;
-using DistributedBanking.Client.Domain.Services;
-using DistributedBanking.Client.Domain.Services.Implementation;
-using Shared.Data.Entities;
 
 namespace DistributedBanking.API.Extensions;
 

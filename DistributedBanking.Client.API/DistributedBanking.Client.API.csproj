@@ -30,8 +30,4 @@
     <ProjectReference Include="..\DistributedBanking.Shared\Contracts\Contracts.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
-
 </Project>
