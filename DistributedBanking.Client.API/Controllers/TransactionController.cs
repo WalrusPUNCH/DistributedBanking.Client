@@ -37,9 +37,7 @@ public class TransactionController : ControllerBase
     {
         var depositStatus = await _transactionService.Deposit(depositTransactionDto.Adapt<OneWayTransactionModel>());
         
-        return depositStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(depositStatus.Message);
+        return depositStatus ? Ok() : BadRequest();
     }
     
     [HttpPost("withdraw")]
@@ -49,9 +47,7 @@ public class TransactionController : ControllerBase
     {
         var withdrawalStatus = await _transactionService.Withdraw(withdrawalTransactionDto.Adapt<OneWaySecuredTransactionModel>());
         
-        return withdrawalStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(withdrawalStatus.Message);
+        return withdrawalStatus ? Ok() : BadRequest();
     }
     
     [HttpPost("transfer")]
@@ -61,9 +57,7 @@ public class TransactionController : ControllerBase
     {
         var transferStatus = await _transactionService.Transfer(transferTransactionDto.Adapt<TwoWayTransactionModel>());
         
-        return transferStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(transferStatus.Message);
+        return transferStatus ? Ok() : BadRequest();
     }
     
     [HttpPost("account_history/{accountId}")]

@@ -6,15 +6,10 @@ namespace DistributedBanking.Client.Domain.Services;
 public interface IIdentityService
 {
     Task<IdentityOperationResult> CreateRole(string roleName);
-
-    Task<IdentityOperationResult> RegisterUser(
-        EndUserRegistrationModel registrationModel, string role);
-    
-    Task DeleteUser(string email);
-
+    Task<bool> RegisterCustomer(EndUserRegistrationModel registrationModel);
+    Task<bool> RegisterWorker(WorkerRegistrationModel registrationModel, string role);
+    Task<bool> DeleteUser(string email);
     Task<(IdentityOperationResult LoginResult, string? Token)> Login(LoginModel loginModel);
-
     Task Logout();
-
-    Task<OperationStatusModel> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport);
+    Task<bool> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport);
 }

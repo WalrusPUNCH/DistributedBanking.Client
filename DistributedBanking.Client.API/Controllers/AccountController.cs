@@ -4,12 +4,15 @@ using DistributedBanking.API.Models.Account;
 using DistributedBanking.Client.Domain.Models.Account;
 using DistributedBanking.Client.Domain.Services;
 using Mapster;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Shared.Data.Entities.Constants;
 
 namespace DistributedBanking.API.Controllers;
 
 [ApiController]
-//[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -29,8 +32,9 @@ public class AccountController : ControllerBase
     {
         var userId = User.Id();
         var createdAccount = await _accountService.CreateAsync(userId, accountDto.Adapt<AccountCreationModel>());
-            
-        return Created(createdAccount.Id, createdAccount);
+        return createdAccount ? Ok() : BadRequest();
+        
+        //return Created(createdAccount.Id, createdAccount);
     }
     
     [HttpGet] //todo remove
@@ -75,8 +79,8 @@ public class AccountController : ControllerBase
     [TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
     public async Task<IActionResult> DeleteAccount(string accountId)
     {
-        await _accountService.DeleteAsync(accountId);
+        var accountDeletionResult = await _accountService.DeleteAsync(accountId);
         
-        return Ok();
+        return accountDeletionResult ? Ok() : BadRequest();
     }
 }

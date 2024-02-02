@@ -1,50 +1,37 @@
-﻿using DistributedBanking.Client.Data.Repositories;
+﻿using Confluent.Kafka;
+using DistributedBanking.Client.Data.Repositories;
+using DistributedBanking.Client.Domain.Mapping;
 using DistributedBanking.Client.Domain.Models.Account;
 using Mapster;
 using MongoDB.Bson;
 using Shared.Data.Entities;
+using Shared.Kafka.Messages.Account;
+using Shared.Kafka.Services;
 
 namespace DistributedBanking.Client.Domain.Services.Implementation;
 
 public class AccountService : IAccountService
 {
     private readonly IAccountsRepository _accountsRepository;
-    private readonly ICustomersRepository _customersRepository;
+    private readonly IKafkaProducerService<AccountCreationMessage> _accountCreationProducer;
+    private readonly IKafkaProducerService<AccountDeletionMessage> _accountDeletionProducer;
 
     public AccountService(
         IAccountsRepository accountsRepository, 
-        ICustomersRepository customersRepository)
+        IKafkaProducerService<AccountCreationMessage> accountCreationProducer, 
+        IKafkaProducerService<AccountDeletionMessage> accountDeletionProducer)
     {
         _accountsRepository = accountsRepository;
-        _customersRepository = customersRepository;
+        _accountCreationProducer = accountCreationProducer;
+        _accountDeletionProducer = accountDeletionProducer;
     }
     
-    public async Task<AccountOwnedResponseModel> CreateAsync(string customerId, AccountCreationModel accountCreationModel)
+    public async Task<bool> CreateAsync(string customerId, AccountCreationModel accountCreationModel)
     {
-        var account = GenerateNewAccount(customerId, accountCreationModel);
-        var accountEntity = account.Adapt<AccountEntity>();
-        await _accountsRepository.AddAsync(accountEntity);
+        var accountCreationMessage = accountCreationModel.ToKafkaMessage(customerId);
         
-        var customerEntity = await _customersRepository.GetAsync(new ObjectId(customerId));
-        customerEntity.Accounts.Add(accountEntity.Id.ToString());
-
-        await _customersRepository.UpdateAsync(customerEntity);
-        
-        return accountEntity.Adapt<AccountOwnedResponseModel>();
-    }
-
-    private static AccountModel GenerateNewAccount(string customerId, AccountCreationModel accountModel)
-    {
-        return new AccountModel
-        {
-            Name = accountModel.Name,
-            Type = accountModel.Type,
-            Balance = 0,
-            ExpirationDate = Generator.GenerateExpirationDate(),
-            SecurityCode = Generator.GenerateSecurityCode(),
-            Owner = customerId,
-            CreatedAt = DateTime.UtcNow
-        };
+        var result = await _accountCreationProducer.ProduceAsync(accountCreationMessage, accountCreationMessage.Headers);
+        return result.Status == PersistenceStatus.Persisted;
     }
 
     public async Task<AccountOwnedResponseModel> GetAsync(string id)
@@ -81,18 +68,17 @@ public class AccountService : IAccountService
         await _accountsRepository.UpdateAsync(model);
     }
 
-    public async Task DeleteAsync(string id)
+    public async Task<bool> DeleteAsync(string id)
     {
         var accountEntity = await _accountsRepository.GetAsync(new ObjectId(id));
-        if (string.IsNullOrWhiteSpace(accountEntity.Owner))
+        if (string.IsNullOrWhiteSpace(accountEntity?.Owner))
         {
-            return;
+            return false;
         }
         
-        var customerEntity = await _customersRepository.GetAsync(new ObjectId(accountEntity.Owner));
-        customerEntity.Accounts.Remove(accountEntity.Id.ToString());
-        await _customersRepository.UpdateAsync(customerEntity);
-        accountEntity.Owner = null;
-        await UpdateAsync(accountEntity);
+        var accountDeletionMessage = new AccountDeletionMessage(id);
+        var result = await _accountDeletionProducer.ProduceAsync(accountDeletionMessage, accountDeletionMessage.Headers);
+        
+        return result.Status == PersistenceStatus.Persisted;
     }
 }
