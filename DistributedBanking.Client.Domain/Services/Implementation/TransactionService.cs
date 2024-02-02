@@ -1,4 +1,5 @@
-﻿using Contracts;
+﻿using Confluent.Kafka;
+using Contracts;
 using DistributedBanking.Client.Data.Repositories;
 using DistributedBanking.Client.Domain.Mapping;
 using DistributedBanking.Client.Domain.Models.Transaction;
@@ -6,6 +7,8 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
 using Shared.Data.Entities.Constants;
+using Shared.Kafka.Messages.Transaction;
+using Shared.Kafka.Services;
 
 namespace DistributedBanking.Client.Domain.Services.Implementation;
 
@@ -14,40 +17,85 @@ public class TransactionService : ITransactionService
     private readonly ITransactionsRepository _transactionsRepository;
     private readonly IAccountsRepository _accountsRepository;
     private readonly ILogger<TransactionService> _logger;
+    private readonly IKafkaProducerService<TransactionMessage> _transactionsProducer;
 
     public TransactionService(
         ITransactionsRepository transactionsRepository, 
         IAccountsRepository accountsRepository,
-        ILogger<TransactionService> logger)
+        ILogger<TransactionService> logger, 
+        IKafkaProducerService<TransactionMessage> transactionsProducer)
     {
         _transactionsRepository = transactionsRepository;
         _accountsRepository = accountsRepository;
         _logger = logger;
+        _transactionsProducer = transactionsProducer;
     }
     
-    public async Task<OperationStatusModel> Deposit(OneWayTransactionModel depositTransactionModel)
+    public async Task<bool> Deposit(OneWayTransactionModel depositTransactionModel)
     {
-        throw new NotImplementedException();
-        // _transactionsQueue.EnqueueAsync(() => DepositInternal(depositTransactionModel));
+        var account = await _accountsRepository.GetAsync(new ObjectId(depositTransactionModel.SourceAccountId));
+        if (account == null || !AccountValidator.IsAccountValid(account))
+        {
+            return false;
+        }
+        
+        return await PublishTransactionMessage(depositTransactionModel);
+        
+        /*var transactionMessage = depositTransactionModel.Adapt<TransactionMessage>();
+        var result = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            
+        return result.Status == PersistenceStatus.Persisted;*/
     }
     
-    public async Task<OperationStatusModel> Withdraw(OneWaySecuredTransactionModel withdrawTransactionModel)
+    public async Task<bool> Withdraw(OneWaySecuredTransactionModel withdrawTransactionModel)
     {
-        throw new NotImplementedException();
-        //_transactionsQueue.EnqueueAsync(() => WithdrawInternal(withdrawTransactionModel));
+        var account = await _accountsRepository.GetAsync(new ObjectId(withdrawTransactionModel.SourceAccountId));
+        if (account == null || !AccountValidator.IsAccountValid(account, withdrawTransactionModel.SecurityCode))
+        {
+            return false;
+        }
+
+        return await PublishTransactionMessage(withdrawTransactionModel);
+        
+        /*var transactionMessage = withdrawTransactionModel.Adapt<TransactionMessage>();
+        var result = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            
+        return result.Status == PersistenceStatus.Persisted;*/
     }
     
-    public async Task<OperationStatusModel> Transfer(TwoWayTransactionModel transferTransactionModel)
+    public async Task<bool> Transfer(TwoWayTransactionModel transferTransactionModel)
     {
-        throw new NotImplementedException();
-       // _transactionsQueue.EnqueueAsync(() => TransferInternal(transferTransactionModel));    
+        var destinationAccount = await _accountsRepository.GetAsync(new ObjectId(transferTransactionModel.DestinationAccountId));
+        var sourceAccount = await _accountsRepository.GetAsync(new ObjectId(transferTransactionModel.SourceAccountId));
+        if (sourceAccount == null || !AccountValidator.IsAccountValid(sourceAccount, transferTransactionModel.SourceAccountSecurityCode))
+        {
+            return false;
+        }
+            
+        if (destinationAccount == null || !AccountValidator.IsAccountValid(destinationAccount))
+        {
+            return false;
+        }
+
+        var transactionMessage = transferTransactionModel.Adapt<TransactionMessage>();
+        var result = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            
+        return result.Status == PersistenceStatus.Persisted;
+    }
+    
+    private async Task<bool> PublishTransactionMessage(OneWayTransactionModel transactionModel)
+    {
+        var transactionMessage = transactionModel.Adapt<TransactionMessage>();
+        var result = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            
+        return result.Status == PersistenceStatus.Persisted;
     }
 
     public async Task<decimal> GetBalance(string accountId)
     {
         var account = await _accountsRepository.GetAsync(new ObjectId(accountId));
-        
-        return account.Balance;
+
+        return account?.Balance ?? default;
     }
 
     public async Task<IEnumerable<TransactionResponseModel>> GetAccountTransactionHistory(string accountId)

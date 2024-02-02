@@ -33,16 +33,20 @@ public class IdentityController : ControllerBase
     [HttpPost("register/customer")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RegisterCustomer(EndUserRegistrationDto registrationDto)
-    { 
-        return await RegisterUser(registrationDto.Adapt<EndUserRegistrationModel>(), RoleNames.Customer);
+    {
+        var userCreationResult = await _identityService.RegisterCustomer(registrationDto.Adapt<EndUserRegistrationModel>());
+        
+        return userCreationResult ? Ok() : BadRequest();
     }
     
     [HttpPost("register/worker")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
+    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
     public async Task<IActionResult> RegisterWorker(WorkerRegistrationDto registrationDto)
     {
-        return await RegisterUser(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Worker);
+        var userCreationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Worker);
+        
+        return userCreationResult ? Ok() : BadRequest();
     }
     
     [HttpPost("register/admin")] //todo remove
@@ -51,7 +55,9 @@ public class IdentityController : ControllerBase
     //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
     public async Task<IActionResult> RegisterAdmin(WorkerRegistrationDto registrationDto)
     {
-        return await RegisterUser(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Administrator);
+        var userCreationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Administrator);
+        
+        return userCreationResult ? Ok() : BadRequest();
     }
     
     [HttpPost("login")]
@@ -95,21 +101,7 @@ public class IdentityController : ControllerBase
         var customerId = User.Id();
         var operationStatus = await _identityService.UpdateCustomerPersonalInformation(customerId, customerPassportDto.Adapt<CustomerPassportModel>());
 
-        return operationStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(operationStatus.Message);
-    }
-
-    private async Task<IActionResult> RegisterUser(EndUserRegistrationModel registrationModel, string role)
-    {
-        var userCreationResult = await _identityService.RegisterUser(registrationModel, role);
-        if (userCreationResult.Succeeded)
-        {
-            return Ok();
-        }
-        
-        HandleUserManagerFailedResult(userCreationResult);
-        throw new ApiException(ModelState.AllErrors());
+        return operationStatus ? Ok() : BadRequest();
     }
     
     private void HandleUserManagerFailedResult(IdentityOperationResult unsuccessfulResult)

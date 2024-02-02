@@ -1,12 +1,13 @@
-﻿using Contracts;
+﻿using Confluent.Kafka;
 using DistributedBanking.Client.Data.Repositories;
+using DistributedBanking.Client.Domain.Mapping;
 using DistributedBanking.Client.Domain.Models.Identity;
-using Mapster;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
-using Shared.Data.Entities.Constants;
-using Shared.Data.Entities.EndUsers;
 using Shared.Data.Entities.Identity;
+using Shared.Kafka.Messages.Identity;
+using Shared.Kafka.Messages.Identity.Registration;
+using Shared.Kafka.Services;
 
 namespace DistributedBanking.Client.Domain.Services.Implementation;
 
@@ -15,27 +16,37 @@ public class IdentityService : IIdentityService
     private readonly IUserManager _usersManager;
     private readonly IRolesManager _rolesManager;
     private readonly ITokenService _tokenService;
+    private readonly IPasswordHashingService _passwordHashingService;
     private readonly ICustomersRepository _customersRepository;
-    private readonly IWorkersRepository _workersRepository;
-    private readonly IAccountService _accountService;
+    private readonly IKafkaProducerService<UserRegistrationMessage> _userRegistrationProducer;
+    private readonly IKafkaProducerService<WorkerRegistrationMessage> _workerRegistrationProducer;
+    private readonly IKafkaProducerService<EndUserDeletionMessage> _endUserDeletionProducer;
+    private readonly IKafkaProducerService<CustomerInformationUpdateMessage> _customerInformationUpdateProducer;
+        
     private readonly ILogger<IdentityService> _logger;
 
     public IdentityService(
         IUserManager userManager,
         IRolesManager rolesManager,
         ITokenService tokenService,
+        IPasswordHashingService passwordHashingService,
         ICustomersRepository customersRepository,
-        IWorkersRepository workersRepository,
-        IAccountService accountService,
-        ILogger<IdentityService> logger)
+        ILogger<IdentityService> logger, 
+        IKafkaProducerService<UserRegistrationMessage> userRegistrationProducer, 
+        IKafkaProducerService<WorkerRegistrationMessage> workerRegistrationProducer, 
+        IKafkaProducerService<EndUserDeletionMessage> endUserDeletionProducer, 
+        IKafkaProducerService<CustomerInformationUpdateMessage> userInformationUpdateProducer)
     {
         _usersManager = userManager;
         _rolesManager = rolesManager;
         _tokenService = tokenService;
+        _passwordHashingService = passwordHashingService;
         _customersRepository = customersRepository;
-        _workersRepository = workersRepository;
-        _accountService = accountService;
         _logger = logger;
+        _userRegistrationProducer = userRegistrationProducer;
+        _workerRegistrationProducer = workerRegistrationProducer;
+        _endUserDeletionProducer = endUserDeletionProducer;
+        _customerInformationUpdateProducer = userInformationUpdateProducer;
     }
 
     public async Task<IdentityOperationResult> CreateRole(string roleName)
@@ -56,57 +67,34 @@ public class IdentityService : IIdentityService
         return IdentityOperationResult.Failed("Unable to create new role. Try again later");
     }
 
-    public async Task<IdentityOperationResult> RegisterUser(
-        EndUserRegistrationModel registrationModel, string role)
-    {
-        return await RegisterUserInternal(registrationModel, role);
-    }
-    
-    private async Task<IdentityOperationResult> RegisterUserInternal(EndUserRegistrationModel registrationModel, string role)
+    public async Task<bool> RegisterCustomer(EndUserRegistrationModel registrationModel)
     {
         var existingUser = await _usersManager.FindByEmailAsync(registrationModel.Email);
         if (existingUser != null)
         {
-            return IdentityOperationResult.Failed("User with the same email already exists");
+            return false;
         }
         
-        ObjectId endUserId;
-        if (string.Equals(role, RoleNames.Customer, StringComparison.InvariantCultureIgnoreCase))
-        {
-            var customerEntity = registrationModel.Adapt<CustomerEntity>();
-            await _customersRepository.AddAsync(customerEntity);
-
-            endUserId = customerEntity.Id;
-        }
-        else if (string.Equals(role, RoleNames.Worker, StringComparison.InvariantCultureIgnoreCase))
-        {
-            var workerEntity = registrationModel.Adapt<WorkerEntity>();
-            await _workersRepository.AddAsync(workerEntity);
+        var passwordHash = _passwordHashingService.HashPassword(registrationModel.Password, out var salt);
+        var userRegistrationMessage = registrationModel.ToKafkaMessage(passwordHash, salt);
+        var result = await _userRegistrationProducer.ProduceAsync(userRegistrationMessage, userRegistrationMessage.Headers);
             
-            endUserId = workerEntity.Id;
-        }
-        else if (string.Equals(role, RoleNames.Administrator, StringComparison.InvariantCultureIgnoreCase))
+        return result.Status == PersistenceStatus.Persisted;
+    }
+    
+    public async Task<bool> RegisterWorker(WorkerRegistrationModel registrationModel, string role)
+    {
+        var existingWorker = await _usersManager.FindByEmailAsync(registrationModel.Email);
+        if (existingWorker != null)
         {
-            var workerEntity = registrationModel.Adapt<WorkerEntity>();
-            await _workersRepository.AddAsync(workerEntity);
-            
-            endUserId = workerEntity.Id;
-        }
-        else
-        {
-            throw new ArgumentOutOfRangeException(nameof(role), role, "Specified role is not supported");
+            return false;
         }
         
-        var userCreationResult = await _usersManager.CreateAsync(endUserId.ToString()!, registrationModel, new []{ role });
-        if (!userCreationResult.Succeeded)
-        {
-            return userCreationResult;
-        }
+        var passwordHash = _passwordHashingService.HashPassword(registrationModel.Password, out var salt);
+        var workerRegistrationMessage = registrationModel.ToKafkaMessage(role, passwordHash, salt);
+        var result = await _workerRegistrationProducer.ProduceAsync(workerRegistrationMessage,workerRegistrationMessage.Headers);
         
-        _logger.LogInformation("New user '{Email}' has been registered and assigned a '{Role}' role",
-            registrationModel.Email, role);
-            
-        return userCreationResult;
+        return result.Status == PersistenceStatus.Persisted;
     }
 
     public async Task<(IdentityOperationResult LoginResult, string? Token)> Login(LoginModel loginModel)
@@ -132,45 +120,34 @@ public class IdentityService : IIdentityService
         
     }
 
-    public async Task DeleteUser(string email)
+    public async Task<bool> DeleteUser(string email)
     {
         var appUser = await _usersManager.FindByEmailAsync(email);
-        if (appUser != null)
+        if (appUser == null)
         {
-            if (await _usersManager.IsInRoleAsync(appUser.Id, RoleNames.Customer))
-            {
-                var customer = await _customersRepository.GetAsync(new ObjectId(appUser.EndUserId));
-                foreach (var customerAccountId in customer.Accounts)
-                {
-                    await _accountService.DeleteAsync(customerAccountId);
-                }
-                
-                await _customersRepository.RemoveAsync(new ObjectId(appUser.EndUserId));
-            }
-            else if (await _usersManager.IsInRoleAsync(appUser.Id, RoleNames.Worker))
-            {
-                await _workersRepository.RemoveAsync(new ObjectId(appUser.EndUserId));
-            }
-            
-            await _usersManager.DeleteAsync(appUser.Id);
+            return false;
+            //return IdentityOperationResult.Failed("User with such ID doesn't exist");
         }
+
+        var endUserDeletionMessage = new EndUserDeletionMessage(appUser.EndUserId);
+        var result = await _endUserDeletionProducer.ProduceAsync(endUserDeletionMessage, endUserDeletionMessage.Headers);
+        
+        return result.Status == PersistenceStatus.Persisted;
     }
 
-    public async Task<OperationStatusModel> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport)
+    public async Task<bool> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport)
     {
-        try
+        var customer = await _customersRepository.GetAsync(new ObjectId(customerId));
+        if (customer == null)
         {
-            var customer = await _customersRepository.GetAsync(new ObjectId(customerId));
-            customer.Passport = customerPassport.Adapt<CustomerPassport>();
+            return false;
+        }
 
-            await _customersRepository.UpdateAsync(customer);
-            
-            return OperationStatusModel.Success();
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Unable to update personal information. Try again later");
-            throw;
-        }
+        var customerInformationUpdateMessage = customerPassport.ToKafkaMessage(customerId);
+        var result = await _customerInformationUpdateProducer.ProduceAsync(
+                value: customerInformationUpdateMessage,
+                headers: customerInformationUpdateMessage.Headers);
+        
+        return result.Status == PersistenceStatus.Persisted;
     }
 }

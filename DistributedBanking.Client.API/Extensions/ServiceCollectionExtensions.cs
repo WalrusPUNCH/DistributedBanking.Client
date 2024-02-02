@@ -21,6 +21,13 @@ using Shared.Data.Services.Implementation.MongoDb;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
+using DistributedBanking.Client.Domain.Models.Identity;
+using Shared.Kafka.Extensions;
+using Shared.Kafka.Messages.Account;
+using Shared.Kafka.Messages.Identity;
+using Shared.Kafka.Messages.Identity.Registration;
+using Shared.Kafka.Messages.Transaction;
+using Shared.Kafka.Options;
 
 namespace DistributedBanking.API.Extensions;
 
@@ -132,6 +139,8 @@ public static class ServiceCollectionExtensions
             .AddTransient<IIdentityService, IdentityService>()
             .AddTransient<ITransactionService, TransactionService>();
 
+        services.AddKafkaProducers(configuration);
+
         return services;
     }
 
@@ -145,6 +154,17 @@ public static class ServiceCollectionExtensions
 
         TypeAdapterConfig<string, ObjectId>.NewConfig()
             .MapWith(value => new ObjectId(value));
+        
+        TypeAdapterConfig<CustomerPassportModel, Passport>.NewConfig()
+            .MapToConstructor(true);
+        
+        TypeAdapterConfig<EndUserRegistrationModel, UserRegistrationMessage>.NewConfig()
+            .MapToConstructor(true);
+        
+        TypeAdapterConfig<TwoWayTransactionModel, TransactionMessage>.NewConfig()
+            .MapToConstructor(true);
+        TypeAdapterConfig<OneWayTransactionModel, TransactionMessage>.NewConfig()
+            .MapToConstructor(true);
         
         return services;
     }
@@ -180,6 +200,19 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ICustomersRepository, CustomersRepository>();
         services.AddTransient<IWorkersRepository, WorkersRepository>();
         services.AddTransient<ITransactionsRepository, TransactionsRepository>();
+        
+        return services;
+    }
+
+    private static IServiceCollection AddKafkaProducers(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddKafkaProducer<UserRegistrationMessage>(configuration, KafkaTopicSource.CustomersRegistration);
+        services.AddKafkaProducer<WorkerRegistrationMessage>(configuration, KafkaTopicSource.WorkersRegistration);
+        services.AddKafkaProducer<CustomerInformationUpdateMessage>(configuration, KafkaTopicSource.CustomersUpdate);
+        services.AddKafkaProducer<EndUserDeletionMessage>(configuration, KafkaTopicSource.UsersDeletion);
+        services.AddKafkaProducer<AccountCreationMessage>(configuration, KafkaTopicSource.AccountCreation);
+        services.AddKafkaProducer<AccountDeletionMessage>(configuration, KafkaTopicSource.AccountDeletion);
+        services.AddKafkaProducer<TransactionMessage>(configuration, KafkaTopicSource.TransactionsCreation);
         
         return services;
     }

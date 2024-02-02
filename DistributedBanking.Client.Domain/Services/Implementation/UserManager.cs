@@ -91,6 +91,22 @@ public class UserManager : IUserManager
         }
     }
 
+    public async Task<UserModel?> FindByIdAsync(string id)
+    {
+        try
+        {
+            var user = await _usersRepository.GetAsync(new ObjectId(id));
+
+            return user?.Adapt<UserModel>();
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Error occurred while trying to find user by email");
+
+            return null;
+        }
+    }
+
     public async Task<IdentityOperationResult> PasswordSignInAsync(string email, string password)
     {
         try
