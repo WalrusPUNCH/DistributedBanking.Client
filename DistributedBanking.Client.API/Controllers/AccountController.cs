@@ -55,7 +55,7 @@ public class AccountController : ControllerBase
         return Ok(items);
     }
     
-    [HttpGet("owned")]
+    [HttpGet("my")]
     [ProducesResponseType(typeof(IEnumerable<AccountResponseModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCustomerAccounts()
     {        

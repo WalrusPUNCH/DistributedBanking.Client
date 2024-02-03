@@ -1,5 +1,4 @@
-﻿using Contracts;
-using DistributedBanking.Client.Domain.Models.Transaction;
+﻿using DistributedBanking.Client.Domain.Models.Transaction;
 
 namespace DistributedBanking.Client.Domain.Services;
 

@@ -18,16 +18,15 @@ using MongoDB.Bson.Serialization.Serializers;
 using Shared.Data.Entities;
 using Shared.Data.Services;
 using Shared.Data.Services.Implementation.MongoDb;
-using System.Reflection;
-using System.Text;
-using System.Text.Json.Serialization;
-using DistributedBanking.Client.Domain.Models.Identity;
 using Shared.Kafka.Extensions;
 using Shared.Kafka.Messages.Account;
 using Shared.Kafka.Messages.Identity;
 using Shared.Kafka.Messages.Identity.Registration;
 using Shared.Kafka.Messages.Transaction;
 using Shared.Kafka.Options;
+using System.Reflection;
+using System.Text;
+using System.Text.Json.Serialization;
 
 namespace DistributedBanking.API.Extensions;
 
@@ -154,17 +153,6 @@ public static class ServiceCollectionExtensions
 
         TypeAdapterConfig<string, ObjectId>.NewConfig()
             .MapWith(value => new ObjectId(value));
-        
-        TypeAdapterConfig<CustomerPassportModel, Passport>.NewConfig()
-            .MapToConstructor(true);
-        
-        TypeAdapterConfig<EndUserRegistrationModel, UserRegistrationMessage>.NewConfig()
-            .MapToConstructor(true);
-        
-        TypeAdapterConfig<TwoWayTransactionModel, TransactionMessage>.NewConfig()
-            .MapToConstructor(true);
-        TypeAdapterConfig<OneWayTransactionModel, TransactionMessage>.NewConfig()
-            .MapToConstructor(true);
         
         return services;
     }
