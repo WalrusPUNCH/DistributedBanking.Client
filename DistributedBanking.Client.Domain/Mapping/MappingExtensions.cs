@@ -1,8 +1,11 @@
 ﻿using DistributedBanking.Client.Domain.Models.Account;
 using DistributedBanking.Client.Domain.Models.Identity;
+using DistributedBanking.Client.Domain.Models.Transaction;
+using Shared.Data.Entities.Constants;
 using Shared.Kafka.Messages.Account;
 using Shared.Kafka.Messages.Identity;
 using Shared.Kafka.Messages.Identity.Registration;
+using Shared.Kafka.Messages.Transaction;
 
 namespace DistributedBanking.Client.Domain.Mapping;
 
@@ -61,5 +64,38 @@ public static class MappingExtensions
     public static AccountCreationMessage ToKafkaMessage(this AccountCreationModel accountCreationModel, string customerId)
     {
         return new AccountCreationMessage(customerId, accountCreationModel.Name, accountCreationModel.Type);
+    }
+    
+    public static TransactionMessage ToKafkaMessage(this OneWayTransactionModel transactionModel)
+    {
+        return new TransactionMessage(
+            SourceAccountId: transactionModel.SourceAccountId,
+            SourceSecurityCode: default,
+            DestinationAccountId: default,
+            Type: TransactionType.Deposit,
+            Amount: transactionModel.Amount,
+            Description: transactionModel.Description);
+    }
+    
+    public static TransactionMessage ToKafkaMessage(this OneWaySecuredTransactionModel transactionModel)
+    {
+        return new TransactionMessage(
+            SourceAccountId: transactionModel.SourceAccountId,
+            SourceSecurityCode: transactionModel.SecurityCode,
+            DestinationAccountId: default,
+            Type: TransactionType.Withdrawal,
+            Amount: transactionModel.Amount,
+            Description: transactionModel.Description);
+    }
+    
+    public static TransactionMessage ToKafkaMessage(this TwoWayTransactionModel transactionModel)
+    {
+        return new TransactionMessage(
+            SourceAccountId: transactionModel.SourceAccountId,
+            SourceSecurityCode: transactionModel.SourceAccountSecurityCode,
+            DestinationAccountId: transactionModel.DestinationAccountId,
+            Type: TransactionType.Transfer,
+            Amount: transactionModel.Amount,
+            Description: transactionModel.Description);
     }
 }
