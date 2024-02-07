@@ -35,7 +35,7 @@ public class IdentityService : IIdentityService
         IKafkaProducerService<UserRegistrationMessage> userRegistrationProducer, 
         IKafkaProducerService<WorkerRegistrationMessage> workerRegistrationProducer, 
         IKafkaProducerService<EndUserDeletionMessage> endUserDeletionProducer, 
-        IKafkaProducerService<CustomerInformationUpdateMessage> userInformationUpdateProducer)
+        IKafkaProducerService<CustomerInformationUpdateMessage> customerInformationUpdateProducer)
     {
         _usersManager = userManager;
         _rolesManager = rolesManager;
@@ -46,7 +46,7 @@ public class IdentityService : IIdentityService
         _userRegistrationProducer = userRegistrationProducer;
         _workerRegistrationProducer = workerRegistrationProducer;
         _endUserDeletionProducer = endUserDeletionProducer;
-        _customerInformationUpdateProducer = userInformationUpdateProducer;
+        _customerInformationUpdateProducer = customerInformationUpdateProducer;
     }
 
     public async Task<IdentityOperationResult> CreateRole(string roleName)
