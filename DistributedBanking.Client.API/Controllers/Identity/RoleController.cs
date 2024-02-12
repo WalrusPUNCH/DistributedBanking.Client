@@ -1,12 +1,12 @@
-﻿using AutoWrapper.Extensions;
+﻿using System.ComponentModel.DataAnnotations;
+using AutoWrapper.Extensions;
 using AutoWrapper.Wrappers;
 using DistributedBanking.Client.Domain.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Data.Entities.Constants;
-using System.ComponentModel.DataAnnotations;
 
-namespace DistributedBanking.API.Controllers;
+namespace DistributedBanking.API.Controllers.Identity;
 
 [Route("api/identity/role")]
 //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]

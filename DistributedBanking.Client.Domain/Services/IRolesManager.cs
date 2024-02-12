@@ -1,4 +1,4 @@
-﻿using DistributedBanking.Client.Domain.Models.Identity;
+﻿using Contracts.Models;
 using Shared.Data.Entities.Identity;
 
 namespace DistributedBanking.Client.Domain.Services;

@@ -17,6 +17,8 @@
       <ProjectReference Include="..\DistributedBanking.Client.Data\DistributedBanking.Client.Data.csproj" />
       <ProjectReference Include="..\DistributedBanking.Shared\Contracts\Contracts.csproj" />
       <ProjectReference Include="..\DistributedBanking.Shared\Shared.Kafka\Shared.Kafka.csproj" />
+      <ProjectReference Include="..\DistributedBanking.Shared\Shared.Messaging\Shared.Messaging.csproj" />
+      <ProjectReference Include="..\DistributedBanking.Shared\Shared.Redis\Shared.Redis.csproj" />
     </ItemGroup>
 
 </Project>
