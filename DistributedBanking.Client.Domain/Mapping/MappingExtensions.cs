@@ -2,10 +2,10 @@
 using DistributedBanking.Client.Domain.Models.Identity;
 using DistributedBanking.Client.Domain.Models.Transaction;
 using Shared.Data.Entities.Constants;
-using Shared.Kafka.Messages.Account;
-using Shared.Kafka.Messages.Identity;
-using Shared.Kafka.Messages.Identity.Registration;
-using Shared.Kafka.Messages.Transaction;
+using Shared.Messaging.Messages.Account;
+using Shared.Messaging.Messages.Identity;
+using Shared.Messaging.Messages.Identity.Registration;
+using Shared.Messaging.Messages.Transaction;
 
 namespace DistributedBanking.Client.Domain.Mapping;
 

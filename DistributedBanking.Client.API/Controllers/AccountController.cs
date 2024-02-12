@@ -31,10 +31,11 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> CreateAccount(AccountCreationDto accountDto)
     {
         var userId = User.Id();
-        var createdAccount = await _accountService.CreateAsync(userId, accountDto.Adapt<AccountCreationModel>());
-        return createdAccount ? Ok() : BadRequest();
-        
-        //return Created(createdAccount.Id, createdAccount);
+        var accountCreationResult = await _accountService.CreateAsync(userId, accountDto.Adapt<AccountCreationModel>());
+
+        return accountCreationResult.EndedSuccessfully
+            ? Created(accountCreationResult.ResponseValue!.Id, accountCreationResult.ResponseValue!)
+            : BadRequest(accountCreationResult.Message);
     }
     
     [HttpGet] //todo remove
@@ -44,6 +45,15 @@ public class AccountController : ControllerBase
         var items = await _accountService.GetAsync();
         
         return Ok(items);
+    }
+    
+    [HttpGet("{id}")] //todo remove
+    [ProducesResponseType(typeof(AccountOwnedResponseModel), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccount(string id)
+    {
+        var item = await _accountService.GetAsync(id);
+        
+        return Ok(item);
     }
     
     [HttpGet("owned/{ownerId}")] //todo remove
@@ -64,15 +74,6 @@ public class AccountController : ControllerBase
         
         return Ok(items);
     }
-   
-    [HttpGet("{id}")] //todo remove
-    [ProducesResponseType(typeof(AccountOwnedResponseModel), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAccount(string id)
-    {
-        var item = await _accountService.GetAsync(id);
-        
-        return Ok(item);
-    }
     
     [HttpDelete("{accountId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -81,6 +82,6 @@ public class AccountController : ControllerBase
     {
         var accountDeletionResult = await _accountService.DeleteAsync(accountId);
         
-        return accountDeletionResult ? Ok() : BadRequest();
+        return accountDeletionResult.EndedSuccessfully ? Ok() : BadRequest(accountDeletionResult.Message);
     }
 }

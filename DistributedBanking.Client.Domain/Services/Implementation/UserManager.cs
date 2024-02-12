@@ -1,10 +1,10 @@
 ﻿using Contracts.Extensions;
+using Contracts.Models;
 using DistributedBanking.Client.Data.Repositories;
 using DistributedBanking.Client.Domain.Models.Identity;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
-using Shared.Data.Entities.Identity;
 
 namespace DistributedBanking.Client.Domain.Services.Implementation;
 
@@ -26,55 +26,7 @@ public class UserManager : IUserManager
         _passwordService = passwordService;
         _logger = logger;
     }
-
-    public async Task<IdentityOperationResult> CreateAsync(string endUserId, EndUserRegistrationModel registrationModel, IEnumerable<string>? roles = null)
-    {
-        try
-        {
-            var roleNames = roles?.ToList();
-            var roleIds = new List<string>();
-            if (roleNames != null && roleNames.Any())
-            {
-                foreach (var roleName in roleNames)
-                {
-                    var roleId = (await _rolesRepository.GetAsync(r => r.NormalizedName == roleName.NormalizeString())).FirstOrDefault()?.Id;
-                    if (roleId != null)
-                    {
-                        roleIds.Add(roleId.Value.ToString()!);
-                    }
-                }
-            }
-
-            var existingUser = await _usersRepository.GetByEmailAsync(registrationModel.Email);
-            if (existingUser != null)
-            {
-                return IdentityOperationResult.Failed("User with the same email already exists");
-            }
-            
-            var passwordHash = _passwordService.HashPassword(registrationModel.Password, out var salt);
-            var user = new ApplicationUser
-            {
-                Email = registrationModel.Email,
-                NormalizedEmail = registrationModel.Email.NormalizeString(),
-                PhoneNumber = registrationModel.PhoneNumber,
-                PasswordHash = passwordHash,
-                PasswordSalt = salt,
-                CreatedOn = DateTime.UtcNow,
-                Roles = roleIds,
-                EndUserId = endUserId
-            };
-
-            await _usersRepository.AddAsync(user);
-            
-            return IdentityOperationResult.Success;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Error occurred while trying to create new user");
-            return IdentityOperationResult.Failed();
-        }
-    }
-
+    
     public async Task<UserModel?> FindByEmailAsync(string email)
     {
         try
@@ -114,10 +66,9 @@ public class UserManager : IUserManager
             var user = await _usersRepository.GetByEmailAsync(email);
             if (user == null)
             {
-                return IdentityOperationResult.Failed("User with such email doesn't exist");
+                return IdentityOperationResult.Failed("User with the specified email doesn't exist");
             }
-        
-        
+            
             var successfulSignIn = _passwordService.VerifyPassword(password, user.PasswordHash, user.PasswordSalt);
 
             return successfulSignIn
@@ -134,6 +85,12 @@ public class UserManager : IUserManager
     public async Task<IEnumerable<string>> GetRolesAsync(ObjectId userId)
     {
         var user = await _usersRepository.GetAsync(userId);
+        if (user == null)
+        {
+            _logger.LogError("User with the specified ID '{Id}' does not exist", userId.ToString());
+            return Array.Empty<string>();
+        }
+        
         if (!user.Roles.Any())
         {
             return Array.Empty<string>();
@@ -142,7 +99,15 @@ public class UserManager : IUserManager
         var roleNames = new List<string>();
         foreach (var roleId in user.Roles)
         {
-            roleNames.Add((await _rolesRepository.GetAsync(new ObjectId(roleId))).Name);
+            var role = await _rolesRepository.GetAsync(new ObjectId(roleId));
+            if (role == null)
+            {
+                _logger.LogError("Role with the ID {RoleId} that was specified for user {UserId}", roleId, userId.ToString());
+            }
+            else
+            {
+                roleNames.Add(role.Name);
+            }
         }
 
         return roleNames;
@@ -151,23 +116,14 @@ public class UserManager : IUserManager
     public async Task<bool> IsInRoleAsync(ObjectId userId, string roleName)
     {
         var user = await _usersRepository.GetAsync(userId);
+        if (user == null)
+        {
+            _logger.LogError("User with the specified ID '{Id}' does not exist", userId.ToString());
+            return false;
+        }
+        
         var roleId = (await _rolesRepository.GetAsync(r => r.NormalizedName == roleName.NormalizeString())).FirstOrDefault()?.Id;
         
         return roleId != null && user.Roles.Contains(roleId.Value.ToString());
-    }
-
-    public async Task<IdentityOperationResult> DeleteAsync(ObjectId userId)
-    {
-        try
-        {
-            await _usersRepository.RemoveAsync(userId);
-
-            return IdentityOperationResult.Success;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Error occurred while trying to sign in user");
-            return IdentityOperationResult.Failed();
-        }
     }
 }

@@ -19,11 +19,12 @@ using Shared.Data.Entities;
 using Shared.Data.Services;
 using Shared.Data.Services.Implementation.MongoDb;
 using Shared.Kafka.Extensions;
-using Shared.Kafka.Messages.Account;
-using Shared.Kafka.Messages.Identity;
-using Shared.Kafka.Messages.Identity.Registration;
-using Shared.Kafka.Messages.Transaction;
 using Shared.Kafka.Options;
+using Shared.Messaging.Messages.Account;
+using Shared.Messaging.Messages.Identity;
+using Shared.Messaging.Messages.Identity.Registration;
+using Shared.Messaging.Messages.Transaction;
+using Shared.Redis.Extensions;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -130,6 +131,8 @@ public static class ServiceCollectionExtensions
             .AddMongoDatabase(configuration)
             .AddDataRepositories();
 
+        services.AddRedis(configuration);
+        
         services.AddTransient<IRolesManager, RolesManager>()
             .AddTransient<IUserManager, UserManager>()
             .AddTransient<IAccountService, AccountService>()
