@@ -1,4 +1,7 @@
-﻿using DistributedBanking.API.Filters;
+﻿using Contracts.Models;
+using DistributedBanking.API.Controllers.Identity;
+using DistributedBanking.API.Filters;
+using DistributedBanking.API.Models;
 using DistributedBanking.API.Models.Transaction;
 using DistributedBanking.Client.Domain.Models.Transaction;
 using DistributedBanking.Client.Domain.Services;
@@ -7,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Data.Entities.Constants;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace DistributedBanking.API.Controllers;
 
@@ -17,14 +21,14 @@ namespace DistributedBanking.API.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
 [Route("api/transaction")]
-public class TransactionController : ControllerBase
+public class TransactionController : CustomControllerBase
 {
     private readonly ITransactionService _transactionService;
     private readonly ILogger<TransactionController> _logger;
     
     public TransactionController(
         ITransactionService transactionService,
-        ILogger<TransactionController> logger)
+        ILogger<TransactionController> logger) : base(logger)
     {
         _transactionService = transactionService;
         _logger = logger;
@@ -35,11 +39,9 @@ public class TransactionController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Deposit(OneWayTransactionDto depositTransactionDto)
     {
-        var depositStatus = await _transactionService.Deposit(depositTransactionDto.Adapt<OneWayTransactionModel>());
+        var depositOperation = await _transactionService.Deposit(depositTransactionDto.Adapt<OneWayTransactionModel>());
         
-        return depositStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(depositStatus.Message);
+        return HandleOperationResult(depositOperation);
     }
     
     [HttpPost("withdraw")]
@@ -47,11 +49,9 @@ public class TransactionController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Withdraw(OneWaySecuredTransactionDto withdrawalTransactionDto)
     {
-        var withdrawalStatus = await _transactionService.Withdraw(withdrawalTransactionDto.Adapt<OneWaySecuredTransactionModel>());
+        var withdrawalOperation = await _transactionService.Withdraw(withdrawalTransactionDto.Adapt<OneWaySecuredTransactionModel>());
         
-        return withdrawalStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(withdrawalStatus.Message);
+        return HandleOperationResult(withdrawalOperation);
     }
     
     [HttpPost("transfer")]
@@ -59,20 +59,18 @@ public class TransactionController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Transfer(TwoWayTransactionDto transferTransactionDto)
     {
-        var transferStatus = await _transactionService.Transfer(transferTransactionDto.Adapt<TwoWayTransactionModel>());
+        var transferOperation = await _transactionService.Transfer(transferTransactionDto.Adapt<TwoWayTransactionModel>());
         
-        return transferStatus.EndedSuccessfully 
-            ? Ok() 
-            : BadRequest(transferStatus.Message);
+        return HandleOperationResult(transferOperation);
     }
     
     [HttpPost("account_history/{accountId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<TransactionResponseModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AccountHistory(string accountId)
     {
-        var transferStatus = await _transactionService.GetAccountTransactionHistory(accountId);
+        var history = await _transactionService.GetAccountTransactionHistory(accountId);
         
-        return Ok(transferStatus);
+        return Ok(new Response<IEnumerable<TransactionResponseModel>>(OperationStatus.Success, string.Empty, history));
     }
 }

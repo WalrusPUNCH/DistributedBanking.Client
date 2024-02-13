@@ -1,6 +1,8 @@
 ﻿using AutoWrapper.Extensions;
 using AutoWrapper.Wrappers;
 using Contracts.Extensions;
+using Contracts.Models;
+using DistributedBanking.API.Models;
 using DistributedBanking.API.Models.Identity;
 using DistributedBanking.Client.Domain.Models.Identity;
 using DistributedBanking.Client.Domain.Services;
@@ -18,7 +20,7 @@ namespace DistributedBanking.API.Controllers.Identity;
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
-public class IdentityController : IdentityControllerBase
+public class IdentityController : CustomControllerBase
 {
     private readonly IIdentityService _identityService;
     private readonly ILogger<IdentityController> _logger;
@@ -37,7 +39,7 @@ public class IdentityController : IdentityControllerBase
     {
         var customerRegistrationResult = await _identityService.RegisterCustomer(registrationDto.Adapt<EndUserRegistrationModel>());
         
-        return HandleUserManagerResult(customerRegistrationResult);
+        return HandleOperationResult(customerRegistrationResult);
     }
     
     [HttpPost("register/worker")]
@@ -47,7 +49,7 @@ public class IdentityController : IdentityControllerBase
     {
         var workerRegistrationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Worker);
         
-        return HandleUserManagerResult(workerRegistrationResult);
+        return HandleOperationResult(workerRegistrationResult);
     }
     
     [HttpPost("register/admin")] //todo remove
@@ -57,22 +59,24 @@ public class IdentityController : IdentityControllerBase
     public async Task<IActionResult> RegisterAdmin(WorkerRegistrationDto registrationDto)
     {
         var adminRegistrationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Administrator);
-        
-        return HandleUserManagerResult(adminRegistrationResult);
+
+        return HandleOperationResult(adminRegistrationResult);
     }
     
     [HttpPost("login")]
     [ProducesResponseType(typeof(JwtTokenDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Login(LoginDto loginDto)
     {
-        var loginResult = await _identityService.Login(loginDto.Adapt<LoginModel>());
-        if (!loginResult.LoginResult.Succeeded)
+        var loginOperationResult = await _identityService.Login(loginDto.Adapt<LoginModel>());
+        if (loginOperationResult.LoginResult.Status != OperationStatus.Success)
         {
-            ModelState.AddModelError(nameof(loginDto.Email), "Login Failed: invalid Email or Password");
+            ModelState.AddModelError(nameof(loginDto.Email), "Invalid email or password");
             throw new ApiException(ModelState.AllErrors());
         }
 
-        return Ok(new JwtTokenDto {Token = loginResult.Token!});
+        return Ok(new Response<JwtTokenDto>(loginOperationResult.LoginResult.Status,
+            loginOperationResult.LoginResult.Message,
+            new JwtTokenDto { Token = loginOperationResult.Token! }));
     }
     
     [HttpGet("logout")]
@@ -91,7 +95,7 @@ public class IdentityController : IdentityControllerBase
         var userEmail = User.Email();
         var userDeletionResult = await _identityService.DeleteUser(userEmail);
         
-        return HandleUserManagerResult(userDeletionResult);
+        return HandleOperationResult(userDeletionResult);
     }
 
     [HttpPost("customer/update_passport")]
@@ -102,6 +106,6 @@ public class IdentityController : IdentityControllerBase
         var customerId = User.Id();
         var informationUpdateResult = await _identityService.UpdateCustomerPersonalInformation(customerId, customerPassportDto.Adapt<CustomerPassportModel>());
 
-        return HandleUserManagerResult(informationUpdateResult);
+        return HandleOperationResult(informationUpdateResult);
     }
 }

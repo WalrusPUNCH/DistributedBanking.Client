@@ -1,6 +1,6 @@
 ﻿using Contracts.Extensions;
+using Contracts.Models;
 using DistributedBanking.Client.Data.Repositories;
-using DistributedBanking.Client.Domain.Models.Identity;
 using Microsoft.Extensions.Logging;
 using Shared.Data.Entities.Identity;
 
@@ -19,18 +19,18 @@ public class RolesManager : IRolesManager
         _logger = logger;
     }
     
-    public async Task<IdentityOperationResult> CreateAsync(ApplicationRole role)
+    public async Task<OperationResult> CreateAsync(ApplicationRole role)
     {
         try
         {
             await _rolesRepository.AddAsync(role);
-            return IdentityOperationResult.Success;
+            return OperationResult.Success();
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Exception occurred while trying to create new role");
+            _logger.LogError(exception, "Exception occurred while trying to create a new role");
             
-            return IdentityOperationResult.Failed();
+            return OperationResult.InternalFail("Error occurred while trying to create a new role");
         }
     }
 

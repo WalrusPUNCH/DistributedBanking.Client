@@ -132,6 +132,7 @@ public static class ServiceCollectionExtensions
             .AddDataRepositories();
 
         services.AddRedis(configuration);
+        services.AddSingleton<IResponseService, ResponseService>();
         
         services.AddTransient<IRolesManager, RolesManager>()
             .AddTransient<IUserManager, UserManager>()
