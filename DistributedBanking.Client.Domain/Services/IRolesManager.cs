@@ -5,6 +5,6 @@ namespace DistributedBanking.Client.Domain.Services;
 
 public interface IRolesManager
 {
-    Task<IdentityOperationResult> CreateAsync(ApplicationRole role);
+    Task<OperationResult> CreateAsync(ApplicationRole role);
     Task<bool> RoleExists(string roleName);
 }

@@ -59,26 +59,26 @@ public class UserManager : IUserManager
         }
     }
 
-    public async Task<IdentityOperationResult> PasswordSignInAsync(string email, string password)
+    public async Task<OperationResult> PasswordSignInAsync(string email, string password)
     {
         try
         {
             var user = await _usersRepository.GetByEmailAsync(email);
             if (user == null)
             {
-                return IdentityOperationResult.Failed("User with the specified email doesn't exist");
+                return OperationResult.BadRequest("User with the specified email doesn't exist");
             }
             
             var successfulSignIn = _passwordService.VerifyPassword(password, user.PasswordHash, user.PasswordSalt);
 
             return successfulSignIn
-                ? IdentityOperationResult.Success
-                : IdentityOperationResult.Failed("Incorrect email or password");
+                ? OperationResult.Success()
+                : OperationResult.BadRequest("Incorrect email or password");
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Error occurred while trying to sign in user");
-            return IdentityOperationResult.Failed();
+            _logger.LogError(exception, "Exception occurred while trying to sign in user");
+            return OperationResult.InternalFail("Error occurred while trying to sign in user");
         }
     }
 

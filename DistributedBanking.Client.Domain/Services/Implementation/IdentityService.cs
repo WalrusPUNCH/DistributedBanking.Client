@@ -53,30 +53,30 @@ public class IdentityService : IIdentityService
         _logger = logger;
     }
 
-    public async Task<IdentityOperationResult> CreateRole(string roleName)
+    public async Task<OperationResult> CreateRole(string roleName)
     {
         if (await _rolesManager.RoleExists(roleName))
         {
-            return IdentityOperationResult.Failed("Role with the specified name already exists");
+            return OperationResult.BadRequest("Role with the specified name already exists");
         }
         
         var result = await _rolesManager.CreateAsync(new ApplicationRole(roleName));
-        if (result.Succeeded)
+        if (result.Status == OperationStatus.Success)
         {
             _logger.LogInformation("New role '{Role}' has been created", roleName);
             
-            return IdentityOperationResult.Success;
+            return OperationResult.Success();
         }
         
-        return IdentityOperationResult.Failed("Unable to create new role. Try again later");
+        return OperationResult.InternalFail("Unable to create a new role. Try again later");
     }
 
-    public async Task<IdentityOperationResult> RegisterCustomer(EndUserRegistrationModel registrationModel)
+    public async Task<OperationResult> RegisterCustomer(EndUserRegistrationModel registrationModel)
     {
         var existingUser = await _usersManager.FindByEmailAsync(registrationModel.Email);
         if (existingUser != null)
         {
-            return IdentityOperationResult.Failed("A user with the same email is already registered");
+            return OperationResult.BadRequest("A user with the same email is already registered");
         }
         
         var passwordHash = _passwordHashingService.HashPassword(registrationModel.Password, out var salt);
@@ -85,20 +85,20 @@ public class IdentityService : IIdentityService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish customer registration message into Kafka. Message was not persisted");
-            return IdentityOperationResult.Failed("Error occurred while trying to register new user");
+            return OperationResult.InternalFail("Error occurred while trying to register new user");
         }
         
-        var response = await _responseService.GetResponse<IdentityOperationResult>(userRegistrationMessage, messageDelivery.TopicPartitionOffset);
+        var response = await _responseService.GetResponse<OperationResult>(userRegistrationMessage, messageDelivery.TopicPartitionOffset);
         
-        return response ?? IdentityOperationResult.Processing;
+        return response ?? OperationResult.Processing();
     }
     
-    public async Task<IdentityOperationResult> RegisterWorker(WorkerRegistrationModel registrationModel, string role)
+    public async Task<OperationResult> RegisterWorker(WorkerRegistrationModel registrationModel, string role)
     {
         var existingWorker = await _usersManager.FindByEmailAsync(registrationModel.Email);
         if (existingWorker != null)
         {
-            return IdentityOperationResult.Failed("A user with the same email is already registered");
+            return OperationResult.BadRequest("A user with the same email is already registered");
         }
         
         var passwordHash = _passwordHashingService.HashPassword(registrationModel.Password, out var salt);
@@ -107,20 +107,20 @@ public class IdentityService : IIdentityService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish worker registration message into Kafka. Message was not persisted");
-            return IdentityOperationResult.Failed("Error occurred while trying to register new user");
+            return OperationResult.InternalFail("Error occurred while trying to register new user");
         }
         
-        var response = await _responseService.GetResponse<IdentityOperationResult>(workerRegistrationMessage, messageDelivery.TopicPartitionOffset);
+        var response = await _responseService.GetResponse<OperationResult>(workerRegistrationMessage, messageDelivery.TopicPartitionOffset);
         
-        return response ?? IdentityOperationResult.Processing;
+        return response ?? OperationResult.Processing();
     }
     
-    public async Task<IdentityOperationResult> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport)
+    public async Task<OperationResult> UpdateCustomerPersonalInformation(string customerId, CustomerPassportModel customerPassport)
     {
         var customer = await _customersRepository.GetAsync(new ObjectId(customerId));
         if (customer == null)
         {
-            return IdentityOperationResult.Failed("User with the specified email does not exist");
+            return OperationResult.BadRequest("User with the specified email does not exist");
         }
 
         var customerInformationUpdateMessage = customerPassport.ToKafkaMessage(customerId);
@@ -131,19 +131,19 @@ public class IdentityService : IIdentityService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish customer personal information update message into Kafka. Message was not persisted");
-            return IdentityOperationResult.Failed("Error occurred while trying to update personal information");
+            return OperationResult.InternalFail("Error occurred while trying to update personal information");
         }
         
-        var response = await _responseService.GetResponse<IdentityOperationResult>(customerInformationUpdateMessage, messageDelivery.TopicPartitionOffset);
-        return response ?? IdentityOperationResult.Processing;
+        var response = await _responseService.GetResponse<OperationResult>(customerInformationUpdateMessage, messageDelivery.TopicPartitionOffset);
+        return response ?? OperationResult.Processing();
     }
     
-    public async Task<IdentityOperationResult> DeleteUser(string email)
+    public async Task<OperationResult> DeleteUser(string email)
     {
         var appUser = await _usersManager.FindByEmailAsync(email);
         if (appUser == null)
         {
-            return IdentityOperationResult.Failed("User with the specified email does not exist");
+            return OperationResult.BadRequest("User with the specified email does not exist");
         }
 
         var endUserDeletionMessage = new EndUserDeletionMessage(appUser.EndUserId);
@@ -151,26 +151,26 @@ public class IdentityService : IIdentityService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish user deletion message into Kafka. Message was not persisted");
-            return IdentityOperationResult.Failed("Error occurred while trying to delete user");
+            return OperationResult.InternalFail("Error occurred while trying to delete user");
         }
         
-        var response = await _responseService.GetResponse<IdentityOperationResult>(endUserDeletionMessage, messageDelivery.TopicPartitionOffset);
+        var response = await _responseService.GetResponse<OperationResult>(endUserDeletionMessage, messageDelivery.TopicPartitionOffset);
         
-        return response ?? IdentityOperationResult.Processing;
+        return response ?? OperationResult.Processing();
     }
     
-    public async Task<(IdentityOperationResult LoginResult, string? Token)> Login(LoginModel loginModel)
+    public async Task<(OperationResult LoginResult, string? Token)> Login(LoginModel loginModel)
     {
         var appUser = await _usersManager.FindByEmailAsync(loginModel.Email);
         if (appUser == null)
         {
-            return (IdentityOperationResult.Failed("User with the specified email does not exist"), default);
+            return (OperationResult.BadRequest("User with the specified email does not exist"), default);
         }
         
         var loginResult = await _usersManager.PasswordSignInAsync(loginModel.Email, loginModel.Password);
-        if (!loginResult.Succeeded)
+        if (loginResult.Status != OperationStatus.Success)
         {
-            return (IdentityOperationResult.Failed("Incorrect email or password"), default);
+            return (OperationResult.BadRequest("Incorrect email or password"), default);
         }
         
         var token = await _tokenService.GenerateTokenAsync(appUser);

@@ -1,5 +1,10 @@
-﻿using Contracts.Extensions;
+﻿using AutoWrapper.Extensions;
+using AutoWrapper.Wrappers;
+using Contracts.Extensions;
+using Contracts.Models;
+using DistributedBanking.API.Controllers.Identity;
 using DistributedBanking.API.Filters;
+using DistributedBanking.API.Models;
 using DistributedBanking.API.Models.Account;
 using DistributedBanking.Client.Domain.Models.Account;
 using DistributedBanking.Client.Domain.Services;
@@ -8,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Data.Entities.Constants;
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace DistributedBanking.API.Controllers;
 
@@ -17,13 +23,15 @@ namespace DistributedBanking.API.Controllers;
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
 [Route("api/account")]
-public class AccountController : ControllerBase
+public class AccountController : CustomControllerBase
 {
     private readonly IAccountService _accountService;
+    private readonly ILogger<AccountController> _logger;
 
-    public AccountController(IAccountService accountService)
+    public AccountController(IAccountService accountService, ILogger<AccountController> logger) : base(logger)
     {
         _accountService = accountService;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -33,9 +41,7 @@ public class AccountController : ControllerBase
         var userId = User.Id();
         var accountCreationResult = await _accountService.CreateAsync(userId, accountDto.Adapt<AccountCreationModel>());
 
-        return accountCreationResult.EndedSuccessfully
-            ? Created(accountCreationResult.ResponseValue!.Id, accountCreationResult.ResponseValue!)
-            : BadRequest(accountCreationResult.Message);
+        return HandleOperationResult(accountCreationResult);
     }
     
     [HttpGet] //todo remove
@@ -44,7 +50,7 @@ public class AccountController : ControllerBase
     {
         var items = await _accountService.GetAsync();
         
-        return Ok(items);
+        return Ok(new Response<IEnumerable<AccountOwnedResponseModel>>(OperationStatus.Success, string.Empty, items));
     }
     
     [HttpGet("{id}")] //todo remove
@@ -53,7 +59,7 @@ public class AccountController : ControllerBase
     {
         var item = await _accountService.GetAsync(id);
         
-        return Ok(item);
+        return Ok(new Response<AccountOwnedResponseModel>(OperationStatus.Success, string.Empty, item));
     }
     
     [HttpGet("owned/{ownerId}")] //todo remove
@@ -62,7 +68,7 @@ public class AccountController : ControllerBase
     {
         var items = await _accountService.GetCustomerAccountsAsync(ownerId);
         
-        return Ok(items);
+        return Ok(new Response<IEnumerable<AccountResponseModel>>(OperationStatus.Success, string.Empty, items));
     }
     
     [HttpGet("my")]
@@ -72,7 +78,7 @@ public class AccountController : ControllerBase
         var userId = User.Id();
         var items = await _accountService.GetCustomerAccountsAsync(userId);
         
-        return Ok(items);
+        return Ok(new Response<IEnumerable<AccountResponseModel>>(OperationStatus.Success, string.Empty, items));
     }
     
     [HttpDelete("{accountId}")]
@@ -81,7 +87,36 @@ public class AccountController : ControllerBase
     public async Task<IActionResult> DeleteAccount(string accountId)
     {
         var accountDeletionResult = await _accountService.DeleteAsync(accountId);
+
+        return HandleOperationResult(accountDeletionResult);
+    }
+    
+    private IActionResult HandleOperationResult(OperationResult<AccountOwnedResponseModel> operationResult)
+    {
+        switch (operationResult.Status)
+        {
+            case OperationStatus.Success:
+                return Created(
+                    operationResult.Response!.Id,
+                    new Response<AccountOwnedResponseModel>(operationResult.Status, operationResult.Message,
+                        operationResult.Response!));
+            case OperationStatus.Processing:
+                return Ok(new Response(operationResult.Status, operationResult.Message));
+            case OperationStatus.BadRequest:
+            {
+                foreach (var error in operationResult.Messages)
+                {
+                    ModelState.AddModelError("", error);
+                }
         
-        return accountDeletionResult.EndedSuccessfully ? Ok() : BadRequest(accountDeletionResult.Message);
+                _logger.LogInformation("Operation has ended unsuccessfully. Details: {Result}", operationResult.ToString());
+                throw new ApiException(ModelState.AllErrors());
+                //return BadRequest(new Response(operationResult.Status, operationResult.Message));
+            }
+            case OperationStatus.InternalFail:
+                return StatusCode(StatusCodes.Status500InternalServerError, operationResult.Message);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(operationResult.Status), operationResult.Status, "Operation status is out of range");
+        }
     }
 }

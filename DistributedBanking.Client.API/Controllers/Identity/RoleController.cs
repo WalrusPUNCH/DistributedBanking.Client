@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using AutoWrapper.Extensions;
 using AutoWrapper.Wrappers;
+using Contracts.Models;
 using DistributedBanking.Client.Domain.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,14 +11,14 @@ namespace DistributedBanking.API.Controllers.Identity;
 
 [Route("api/identity/role")]
 //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
-public class RoleController : ControllerBase
+public class RoleController : CustomControllerBase
 {
     private readonly IIdentityService _identityService;
     private readonly ILogger<RoleController> _logger;
 
     public RoleController(
         IIdentityService identityService,
-        ILogger<RoleController> logger)
+        ILogger<RoleController> logger) : base(logger)
     {
         _identityService = identityService;
         _logger = logger;
@@ -28,12 +29,8 @@ public class RoleController : ControllerBase
     public async Task<IActionResult> CreateRole([Required] string roleName)
     {
         var result = await _identityService.CreateRole(roleName);
-        if (result.Succeeded)
-        {
-            return Ok();
-        }
-
-        throw new ApiException(ModelState.AllErrors());
+        
+        return HandleOperationResult(result);
     }
     
     [AllowAnonymous]
@@ -44,8 +41,8 @@ public class RoleController : ControllerBase
 
         foreach (var roleName in roles)
         {
-            var result = await _identityService.CreateRole(roleName);
-            if (result.Succeeded)
+            var roleCreationOperation = await _identityService.CreateRole(roleName);
+            if (roleCreationOperation.Status == OperationStatus.Success)
             {
                 continue;
             }

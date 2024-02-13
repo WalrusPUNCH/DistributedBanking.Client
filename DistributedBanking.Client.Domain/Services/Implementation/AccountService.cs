@@ -34,7 +34,7 @@ public class AccountService : IAccountService
         _logger = logger;
     }
     
-    public async Task<OperationStatusModel<AccountOwnedResponseModel>> CreateAsync(string customerId, AccountCreationModel accountCreationModel)
+    public async Task<OperationResult<AccountOwnedResponseModel>> CreateAsync(string customerId, AccountCreationModel accountCreationModel)
     {
         var accountCreationMessage = accountCreationModel.ToKafkaMessage(customerId);
         
@@ -42,11 +42,11 @@ public class AccountService : IAccountService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish customer personal information update message into Kafka. Message was not persisted");
-            return OperationStatusModel<AccountOwnedResponseModel>.Fail("Error occurred while trying to update personal information");
+            return OperationResult<AccountOwnedResponseModel>.InternalFail(default, "Error occurred while trying to update personal information");
         }
         
-        var response = await _responseService.GetResponse<OperationStatusModel<AccountOwnedResponseModel>>(accountCreationMessage, messageDelivery.TopicPartitionOffset);
-        return response ?? OperationStatusModel<AccountOwnedResponseModel>.Processing();
+        var response = await _responseService.GetResponse<OperationResult<AccountOwnedResponseModel>>(accountCreationMessage, messageDelivery.TopicPartitionOffset);
+        return response ?? OperationResult<AccountOwnedResponseModel>.Processing(default);
     }
 
     public async Task<AccountOwnedResponseModel?> GetAsync(string id)
@@ -83,13 +83,13 @@ public class AccountService : IAccountService
         await _accountsRepository.UpdateAsync(model);
     }
 
-    public async Task<OperationStatusModel> DeleteAsync(string id)
+    public async Task<OperationResult> DeleteAsync(string id)
     {
         var accountEntity = await _accountsRepository.GetAsync(new ObjectId(id));
         if (string.IsNullOrWhiteSpace(accountEntity?.Owner))
         {
             _logger.LogWarning("Unable to delete account '{AccountId}' because such account does not exist or already deleted", id);
-            return OperationStatusModel.Fail("Error occured while trying to delete account. Try again later");
+            return OperationResult.BadRequest("Error occured while trying to delete account. Specified account doesn't exist or already deleted");
         }
 
         var accountDeletionMessage = new AccountDeletionMessage(id);
@@ -97,10 +97,10 @@ public class AccountService : IAccountService
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
             _logger.LogError("Unable to publish account deletion message into Kafka. Message was not persisted");
-            return OperationStatusModel<AccountOwnedResponseModel>.Fail("Error occurred while trying to delete account");
+            return OperationResult.InternalFail("Error occurred while trying to delete account");
         }
         
-        var response = await _responseService.GetResponse<OperationStatusModel>(accountDeletionMessage, messageDelivery.TopicPartitionOffset);
-        return response ?? OperationStatusModel.Processing();
+        var response = await _responseService.GetResponse<OperationResult>(accountDeletionMessage, messageDelivery.TopicPartitionOffset);
+        return response ?? OperationResult.Processing();
     }
 }

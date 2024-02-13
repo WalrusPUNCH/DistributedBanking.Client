@@ -8,7 +8,7 @@ public interface IUserManager
 {
     Task<UserModel?> FindByEmailAsync(string email);
     Task<UserModel?> FindByIdAsync(string id);
-    Task<IdentityOperationResult> PasswordSignInAsync(string email, string password);
+    Task<OperationResult> PasswordSignInAsync(string email, string password);
     Task<IEnumerable<string>> GetRolesAsync(ObjectId userId);
     Task<bool> IsInRoleAsync(ObjectId userId, string roleName);
 }
