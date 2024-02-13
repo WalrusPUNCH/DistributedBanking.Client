@@ -5,7 +5,6 @@ using DistributedBanking.Client.Domain.Mapping;
 using DistributedBanking.Client.Domain.Models.Identity;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
-using Shared.Data.Entities.Identity;
 using Shared.Kafka.Services;
 using Shared.Messaging.Messages.Identity;
 using Shared.Messaging.Messages.Identity.Registration;
@@ -19,6 +18,7 @@ public class IdentityService : IIdentityService
     private readonly ITokenService _tokenService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly ICustomersRepository _customersRepository;
+    private readonly IKafkaProducerService<RoleCreationMessage> _roleCreationProducer;
     private readonly IKafkaProducerService<UserRegistrationMessage> _userRegistrationProducer;
     private readonly IKafkaProducerService<WorkerRegistrationMessage> _workerRegistrationProducer;
     private readonly IKafkaProducerService<EndUserDeletionMessage> _endUserDeletionProducer;
@@ -33,6 +33,7 @@ public class IdentityService : IIdentityService
         ITokenService tokenService,
         IPasswordHashingService passwordHashingService,
         ICustomersRepository customersRepository,
+        IKafkaProducerService<RoleCreationMessage> roleCreationProducer, 
         IKafkaProducerService<UserRegistrationMessage> userRegistrationProducer, 
         IKafkaProducerService<WorkerRegistrationMessage> workerRegistrationProducer, 
         IKafkaProducerService<EndUserDeletionMessage> endUserDeletionProducer, 
@@ -45,6 +46,7 @@ public class IdentityService : IIdentityService
         _tokenService = tokenService;
         _passwordHashingService = passwordHashingService;
         _customersRepository = customersRepository;
+        _roleCreationProducer = roleCreationProducer;
         _userRegistrationProducer = userRegistrationProducer;
         _workerRegistrationProducer = workerRegistrationProducer;
         _endUserDeletionProducer = endUserDeletionProducer;
@@ -60,15 +62,17 @@ public class IdentityService : IIdentityService
             return OperationResult.BadRequest("Role with the specified name already exists");
         }
         
-        var result = await _rolesManager.CreateAsync(new ApplicationRole(roleName));
-        if (result.Status == OperationStatus.Success)
+        var roleCreationMessage = new RoleCreationMessage(roleName);
+        var messageDelivery = await _roleCreationProducer.ProduceAsync(roleCreationMessage);
+        if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
-            _logger.LogInformation("New role '{Role}' has been created", roleName);
-            
-            return OperationResult.Success();
+            _logger.LogError("Unable to publish {RoleName} role creation message into Kafka. Message was not persisted", roleName);
+            return OperationResult.InternalFail("Error occurred while trying to create new user");
         }
         
-        return OperationResult.InternalFail("Unable to create a new role. Try again later");
+        var response = await _responseService.GetResponse<OperationResult>(roleCreationMessage, messageDelivery.TopicPartitionOffset);
+        
+        return response ?? OperationResult.Processing();
     }
 
     public async Task<OperationResult> RegisterCustomer(EndUserRegistrationModel registrationModel)

@@ -42,7 +42,7 @@ public class RoleController : CustomControllerBase
         foreach (var roleName in roles)
         {
             var roleCreationOperation = await _identityService.CreateRole(roleName);
-            if (roleCreationOperation.Status == OperationStatus.Success)
+            if (roleCreationOperation.Status is OperationStatus.Success or OperationStatus.Processing)
             {
                 continue;
             }

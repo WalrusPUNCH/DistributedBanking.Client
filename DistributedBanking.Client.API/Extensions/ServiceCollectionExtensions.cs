@@ -198,6 +198,7 @@ public static class ServiceCollectionExtensions
 
     private static IServiceCollection AddKafkaProducers(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddKafkaProducer<RoleCreationMessage>(configuration, KafkaTopicSource.RoleCreation);
         services.AddKafkaProducer<UserRegistrationMessage>(configuration, KafkaTopicSource.CustomersRegistration);
         services.AddKafkaProducer<WorkerRegistrationMessage>(configuration, KafkaTopicSource.WorkersRegistration);
         services.AddKafkaProducer<CustomerInformationUpdateMessage>(configuration, KafkaTopicSource.CustomersUpdate);
