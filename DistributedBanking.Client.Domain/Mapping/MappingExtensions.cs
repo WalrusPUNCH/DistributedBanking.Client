@@ -18,7 +18,7 @@ public static class MappingExtensions
         return new UserRegistrationMessage(
             FirstName: registrationModel.FirstName,
             LastName: registrationModel.LastName,
-            BirtDate: registrationModel.BirthDate,
+            BirthDate: registrationModel.BirthDate,
             PhoneNumber: registrationModel.PhoneNumber,
             Email: registrationModel.Email,
             PasswordHash: passwordHash,
