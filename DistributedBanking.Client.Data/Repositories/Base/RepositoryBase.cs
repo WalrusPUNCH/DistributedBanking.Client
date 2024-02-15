@@ -9,7 +9,6 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : BaseEntity
 {
     protected readonly IMongoCollection<T> Collection;
     private readonly FilterDefinitionBuilder<T> _filterBuilder = Builders<T>.Filter;
-    private readonly MongoCollectionSettings _mongoCollectionSettings = new() { GuidRepresentation = GuidRepresentation.Standard };
     
     protected RepositoryBase(
         IMongoDatabase database, 
@@ -21,18 +20,12 @@ public class RepositoryBase<T> : IRepositoryBase<T> where T : BaseEntity
             database.CreateCollection(collectionName);
         }
         
-        Collection = database.GetCollection<T>(collectionName, _mongoCollectionSettings);
-    }
-    
-    public virtual async Task<IReadOnlyCollection<T>> GetAllAsync()
-    {
-        Collection.FindOneAndUpdate(_filterBuilder.Empty, null);
-        return await Collection.Find(_filterBuilder.Empty).ToListAsync();
+        Collection = database.GetCollection<T>(collectionName);
     }
 
-    public virtual async Task<IReadOnlyCollection<T>> GetAllAsync(Expression<Func<T, bool>> filter)
+    public virtual async Task<IReadOnlyCollection<T>> GetAllAsync()
     {
-        return await Collection.Find(filter).ToListAsync();
+        return await Collection.Find(FilterDefinition<T>.Empty).ToListAsync();
     }
 
     public virtual async Task<T?> GetAsync(ObjectId id)
