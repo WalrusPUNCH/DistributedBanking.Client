@@ -150,7 +150,7 @@ public class IdentityService : IIdentityService
             return OperationResult.BadRequest("User with the specified email does not exist");
         }
 
-        var endUserDeletionMessage = new EndUserDeletionMessage(appUser.EndUserId);
+        var endUserDeletionMessage = new EndUserDeletionMessage(appUser.Id.ToString());
         var messageDelivery = await _endUserDeletionProducer.ProduceAsync(endUserDeletionMessage, endUserDeletionMessage.Headers);
         if (messageDelivery.Status != PersistenceStatus.Persisted)
         {
