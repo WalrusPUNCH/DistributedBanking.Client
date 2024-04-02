@@ -35,73 +35,124 @@ public class TransactionService : ITransactionService
     
     public async Task<OperationResult> Deposit(OneWayTransactionModel depositTransactionModel)
     {
-        var account = await _accountsRepository.GetAsync(new ObjectId(depositTransactionModel.SourceAccountId));
-        if (account == null || !AccountValidator.IsAccountValid(account))
+        try
         {
-            return OperationResult.BadRequest("Account is expired");
-        }
+            if (!ObjectId.TryParse(depositTransactionModel.SourceAccountId, out var sourceId))
+            {
+                return OperationResult.BadRequest("Source account id has invalid format");
+            }
+            
+            var account = await _accountsRepository.GetAsync(sourceId);
+            if (account == null || !AccountValidator.IsAccountValid(account))
+            {
+                return OperationResult.BadRequest("Account is expired");
+            }
         
-        var transactionMessage = depositTransactionModel.ToKafkaMessage();
-        var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
-        if (messageDelivery.Status != PersistenceStatus.Persisted)
+            var transactionMessage = depositTransactionModel.ToKafkaMessage();
+            var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            if (messageDelivery.Status != PersistenceStatus.Persisted)
+            {
+                _logger.LogError("Unable to publish deposit transaction message into Kafka. Message was not persisted");
+                return OperationResult.InternalFail("Error occurred while trying to make deposit");
+            }
+        
+            var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
+        
+            return response ?? OperationResult.Processing();
+        }
+        catch (Exception exception)
         {
-            _logger.LogError("Unable to publish deposit transaction message into Kafka. Message was not persisted");
+            _logger.LogError(exception, "Exception occurred while trying to make deposit into '{AccountId}' account",
+                depositTransactionModel.SourceAccountId);
+            
             return OperationResult.InternalFail("Error occurred while trying to make deposit");
         }
-        
-        var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
-        
-        return response ?? OperationResult.Processing();
     }
     
     public async Task<OperationResult> Withdraw(OneWaySecuredTransactionModel withdrawTransactionModel)
     {
-        var account = await _accountsRepository.GetAsync(new ObjectId(withdrawTransactionModel.SourceAccountId));
-        if (account == null || !AccountValidator.IsAccountValid(account, withdrawTransactionModel.SecurityCode))
+        try
         {
-            return OperationResult.BadRequest("Provided account information is not valid. Account is expired or entered " +
-                                        "security code is not correct");
-        }
+            if (!ObjectId.TryParse(withdrawTransactionModel.SourceAccountId, out var sourceId))
+            {
+                return OperationResult.BadRequest("Source account id has invalid format");
+            }
+            
+            var account = await _accountsRepository.GetAsync(sourceId);
+            if (account == null || !AccountValidator.IsAccountValid(account, withdrawTransactionModel.SecurityCode))
+            {
+                return OperationResult.BadRequest("Provided account information is not valid. Account is expired or entered " +
+                                                  "security code is not correct");
+            }
         
-        var transactionMessage = withdrawTransactionModel.ToKafkaMessage();
-        var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
-        if (messageDelivery.Status != PersistenceStatus.Persisted)
+            var transactionMessage = withdrawTransactionModel.ToKafkaMessage();
+            var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            if (messageDelivery.Status != PersistenceStatus.Persisted)
+            {
+                _logger.LogError("Unable to publish withdrawal transaction message into Kafka. Message was not persisted");
+                return OperationResult.InternalFail("Error occurred while trying to make withdrawal");
+            }
+        
+            var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
+        
+            return response ?? OperationResult.Processing();
+        }
+        catch (Exception exception)
         {
-            _logger.LogError("Unable to publish withdrawal transaction message into Kafka. Message was not persisted");
+            _logger.LogError(exception, "Exception occurred while trying to make withdrawal from '{AccountId}' account",
+                withdrawTransactionModel.SourceAccountId);
+            
             return OperationResult.InternalFail("Error occurred while trying to make withdrawal");
         }
-        
-        var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
-        
-        return response ?? OperationResult.Processing();
     }
     
     public async Task<OperationResult> Transfer(TwoWayTransactionModel transferTransactionModel)
     {
-        var destinationAccount = await _accountsRepository.GetAsync(new ObjectId(transferTransactionModel.DestinationAccountId));
-        var sourceAccount = await _accountsRepository.GetAsync(new ObjectId(transferTransactionModel.SourceAccountId));
-        if (sourceAccount == null || !AccountValidator.IsAccountValid(sourceAccount, transferTransactionModel.SourceAccountSecurityCode))
+        try
         {
-            return OperationResult.BadRequest("Provided account information is not valid. Account is expired or entered " +
-                                        "security code is not correct");
-        }
+            if (!ObjectId.TryParse(transferTransactionModel.SourceAccountId, out var sourceId))
+            {
+                return OperationResult.BadRequest("Source account id has invalid format");
+            }
             
-        if (destinationAccount == null || !AccountValidator.IsAccountValid(destinationAccount))
-        {
-            return OperationResult.BadRequest("Destination account information is not valid. Account is probably expired");
-        }
+            if (!ObjectId.TryParse(transferTransactionModel.DestinationAccountId, out var destinationId))
+            {
+                return OperationResult.BadRequest("Destination account id has invalid format");
+            }
+            
+            var destinationAccount = await _accountsRepository.GetAsync(destinationId);
+            var sourceAccount = await _accountsRepository.GetAsync(sourceId);
+            if (sourceAccount == null || !AccountValidator.IsAccountValid(sourceAccount, transferTransactionModel.SourceAccountSecurityCode))
+            {
+                return OperationResult.BadRequest("Provided account information is not valid. Account is expired or entered " +
+                                                  "security code is not correct");
+            }
+            
+            if (destinationAccount == null || !AccountValidator.IsAccountValid(destinationAccount))
+            {
+                return OperationResult.BadRequest("Destination account information is not valid. Account is probably expired");
+            }
 
-        var transactionMessage = transferTransactionModel.ToKafkaMessage();
-        var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
-        if (messageDelivery.Status != PersistenceStatus.Persisted)
+            var transactionMessage = transferTransactionModel.ToKafkaMessage();
+            var messageDelivery = await _transactionsProducer.ProduceAsync(transactionMessage, transactionMessage.Headers);
+            if (messageDelivery.Status != PersistenceStatus.Persisted)
+            {
+                _logger.LogError("Unable to publish transfer transaction message into Kafka. Message was not persisted");
+                return OperationResult.InternalFail("Error occurred while trying to make transfer");
+            }
+        
+            var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
+        
+            return response ?? OperationResult.Processing();
+        }
+        catch (Exception exception)
         {
-            _logger.LogError("Unable to publish transfer transaction message into Kafka. Message was not persisted");
+            _logger.LogError(exception, "Exception occurred while trying to make transfer from '{AccountId}' account " +
+                                        "to '{SourceId}' account",
+                transferTransactionModel.SourceAccountId, transferTransactionModel.DestinationAccountId);
+            
             return OperationResult.InternalFail("Error occurred while trying to make transfer");
         }
-        
-        var response = await _responseService.GetResponse<OperationResult>(transactionMessage, messageDelivery.TopicPartitionOffset);
-        
-        return response ?? OperationResult.Processing();
     }
     
     public async Task<decimal> GetBalance(string accountId)

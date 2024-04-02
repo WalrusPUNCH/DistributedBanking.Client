@@ -3,8 +3,10 @@ using Contracts.Models;
 using DistributedBanking.Client.Data.Repositories;
 using DistributedBanking.Client.Domain.Mapping;
 using DistributedBanking.Client.Domain.Models.Identity;
+using Mapster;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using Shared.Data.Entities.Constants;
 using Shared.Kafka.Services;
 using Shared.Messaging.Messages.Identity;
 using Shared.Messaging.Messages.Identity.Registration;
@@ -18,6 +20,7 @@ public class IdentityService : IIdentityService
     private readonly ITokenService _tokenService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly ICustomersRepository _customersRepository;
+    private readonly IWorkersRepository _workersRepository;
     private readonly IKafkaProducerService<RoleCreationMessage> _roleCreationProducer;
     private readonly IKafkaProducerService<UserRegistrationMessage> _userRegistrationProducer;
     private readonly IKafkaProducerService<WorkerRegistrationMessage> _workerRegistrationProducer;
@@ -33,6 +36,7 @@ public class IdentityService : IIdentityService
         ITokenService tokenService,
         IPasswordHashingService passwordHashingService,
         ICustomersRepository customersRepository,
+        IWorkersRepository workersRepository,
         IKafkaProducerService<RoleCreationMessage> roleCreationProducer, 
         IKafkaProducerService<UserRegistrationMessage> userRegistrationProducer, 
         IKafkaProducerService<WorkerRegistrationMessage> workerRegistrationProducer, 
@@ -46,6 +50,7 @@ public class IdentityService : IIdentityService
         _tokenService = tokenService;
         _passwordHashingService = passwordHashingService;
         _customersRepository = customersRepository;
+        _workersRepository = workersRepository;
         _roleCreationProducer = roleCreationProducer;
         _userRegistrationProducer = userRegistrationProducer;
         _workerRegistrationProducer = workerRegistrationProducer;
@@ -162,23 +167,57 @@ public class IdentityService : IIdentityService
         
         return response ?? OperationResult.Processing();
     }
+
+    public async Task<OperationResult<ShortUserModelResponse>> CustomerIdentityInformation(string customerId)
+    {
+        var appUser = await _customersRepository.GetAsync(new ObjectId(customerId));
+        if (appUser == null)
+        {
+            return OperationResult<ShortUserModelResponse>.BadRequest(default, "User with the specified email does not exist");
+        }
+        
+        var shortUserResponseModel = appUser.Adapt<ShortUserModelResponse>();
+        
+        return OperationResult<ShortUserModelResponse>.Success(shortUserResponseModel);
+    }
     
-    public async Task<(OperationResult LoginResult, string? Token)> Login(LoginModel loginModel)
+    public async Task<OperationResult<ShortWorkerModelResponse>> WorkerIdentityInformation(string workerId)
+    {
+        var appUser = await _workersRepository.GetAsync(new ObjectId(workerId));
+        if (appUser == null)
+        {
+            return OperationResult<ShortWorkerModelResponse>.BadRequest(default, "User with the specified email does not exist");
+        }
+        
+        var shortUserResponseModel = appUser.Adapt<ShortWorkerModelResponse>();
+        
+        return OperationResult<ShortWorkerModelResponse>.Success(shortUserResponseModel);
+    }
+
+    public async Task<OperationResult<LoginResultModel>> Login(LoginModel loginModel)
     {
         var appUser = await _usersManager.FindByEmailAsync(loginModel.Email);
         if (appUser == null)
         {
-            return (OperationResult.BadRequest("User with the specified email does not exist"), default);
+            return OperationResult<LoginResultModel>.BadRequest(default, "User with the specified email does not exist");
         }
         
-        var loginResult = await _usersManager.PasswordSignInAsync(loginModel.Email, loginModel.Password);
-        if (loginResult.Status != OperationStatus.Success)
+        var signInResult = await _usersManager.PasswordSignInAsync(loginModel.Email, loginModel.Password);
+        if (signInResult.Status != OperationStatus.Success)
         {
-            return (OperationResult.BadRequest("Incorrect email or password"), default);
+            return OperationResult<LoginResultModel>.BadRequest(default, "Incorrect email or password");
         }
-        
+
         var token = await _tokenService.GenerateTokenAsync(appUser);
-        return (loginResult, token);
+        var isAdmin = await _usersManager.IsInRoleAsync(appUser.Id, RoleNames.Administrator);
+        
+        var loginResult = new LoginResultModel
+        {
+            Token = token,
+            IsAdmin = isAdmin
+        };
+        
+        return OperationResult<LoginResultModel>.Success(loginResult, signInResult.Message);
     }
 
     public async Task Logout()

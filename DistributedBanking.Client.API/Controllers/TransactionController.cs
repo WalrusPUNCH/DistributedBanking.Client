@@ -10,13 +10,12 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Data.Entities.Constants;
+using System.Globalization;
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 namespace DistributedBanking.API.Controllers;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
-[TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -35,16 +34,21 @@ public class TransactionController : CustomControllerBase
     }
 
     [HttpPost("deposit")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+    [TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Deposit(OneWayTransactionDto depositTransactionDto)
     {
+        _logger.LogError("received deposit at {DateTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
         var depositOperation = await _transactionService.Deposit(depositTransactionDto.Adapt<OneWayTransactionModel>());
         
         return HandleOperationResult(depositOperation);
     }
     
     [HttpPost("withdraw")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+    [TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Withdraw(OneWaySecuredTransactionDto withdrawalTransactionDto)
@@ -55,6 +59,8 @@ public class TransactionController : CustomControllerBase
     }
     
     [HttpPost("transfer")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+    [TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Transfer(TwoWayTransactionDto transferTransactionDto)
@@ -64,7 +70,8 @@ public class TransactionController : CustomControllerBase
         return HandleOperationResult(transferOperation);
     }
     
-    [HttpPost("account_history/{accountId}")]
+    [HttpGet("history/{accountId}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = $"{RoleNames.Customer}, {RoleNames.Administrator}")]
     [ProducesResponseType(typeof(IEnumerable<TransactionResponseModel>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AccountHistory(string accountId)
