@@ -15,8 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout submodules
-      uses: textbook/git-checkout-submodule-action@2.1.1
+    - name: Update submodules
+      run: |
+        git submodule update --init --recursive
     - uses: actions/checkout@v4
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
