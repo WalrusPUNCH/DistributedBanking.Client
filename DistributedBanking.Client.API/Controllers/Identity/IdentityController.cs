@@ -44,7 +44,7 @@ public class IdentityController : CustomControllerBase
     
     [HttpPost("register/worker")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
     public async Task<IActionResult> RegisterWorker(WorkerRegistrationDto registrationDto)
     {
         var workerRegistrationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Worker);
@@ -52,7 +52,7 @@ public class IdentityController : CustomControllerBase
         return HandleOperationResult(workerRegistrationResult);
     }
     
-    [HttpPost("register/admin")] //todo remove
+    [HttpPost("register/admin")] 
     [ProducesResponseType(StatusCodes.Status200OK)]
     [AllowAnonymous]
     //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
