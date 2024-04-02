@@ -12,6 +12,7 @@ public static class ApplicationBuilderExtensions
             .UseRouting()
             .UseAuthentication()
             .UseAuthorization()
+            .UseCors(a => a.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod())
             .UseEndpoints(conf =>
             {
                 conf.MapControllers();

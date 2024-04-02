@@ -68,15 +68,15 @@ public class IdentityController : CustomControllerBase
     public async Task<IActionResult> Login(LoginDto loginDto)
     {
         var loginOperationResult = await _identityService.Login(loginDto.Adapt<LoginModel>());
-        if (loginOperationResult.LoginResult.Status != OperationStatus.Success)
+        if (loginOperationResult.Status != OperationStatus.Success)
         {
             ModelState.AddModelError(nameof(loginDto.Email), "Invalid email or password");
             throw new ApiException(ModelState.AllErrors());
         }
 
-        return Ok(new Response<JwtTokenDto>(loginOperationResult.LoginResult.Status,
-            loginOperationResult.LoginResult.Message,
-            new JwtTokenDto { Token = loginOperationResult.Token! }));
+        return Ok(new Response<JwtTokenDto>(loginOperationResult.Status,
+            loginOperationResult.Message,
+            new JwtTokenDto { Token = loginOperationResult.Response!.Token, IsAdmin = loginOperationResult.Response.IsAdmin}));
     }
     
     [HttpGet("logout")]
@@ -89,13 +89,39 @@ public class IdentityController : CustomControllerBase
     
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> Delete()
     {
         var userEmail = User.Email();
         var userDeletionResult = await _identityService.DeleteUser(userEmail);
         
         return HandleOperationResult(userDeletionResult);
+    }
+    
+    [HttpGet("customer/information")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+    public async Task<IActionResult> CustomerIdentityInformation()
+    {
+        var customerId = User.Id();
+        var identityInformationResult = await _identityService.CustomerIdentityInformation(customerId);
+
+        return Ok(new Response<ShortUserModelDto>(identityInformationResult.Status,
+            identityInformationResult.Message,
+            identityInformationResult.Response?.Adapt<ShortUserModelDto>()));
+    }
+    
+    [HttpGet("worker/information")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = $"{RoleNames.Administrator}, {RoleNames.Worker}")]
+    public async Task<IActionResult> WorkerIdentityInformation()
+    {
+        var workerId = User.Id();
+        var identityInformationResult = await _identityService.WorkerIdentityInformation(workerId);
+
+        return Ok(new Response<ShortWorkerModelDto>(identityInformationResult.Status,
+            identityInformationResult.Message,
+            identityInformationResult.Response?.Adapt<ShortWorkerModelDto>()));
     }
 
     [HttpPost("customer/update_passport")]

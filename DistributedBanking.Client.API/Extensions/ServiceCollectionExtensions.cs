@@ -38,7 +38,9 @@ public static class ServiceCollectionExtensions
         var jwtOptions = configuration.GetSection(nameof(JwtOptions)).Get<JwtOptions>();
         ArgumentNullException.ThrowIfNull(jwtOptions);
         
-        services.AddControllers()
+        services
+            .AddCors()
+            .AddControllers()
             .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         services

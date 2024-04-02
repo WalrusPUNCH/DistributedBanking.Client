@@ -18,7 +18,6 @@ using Shared.Data.Entities.Constants;
 namespace DistributedBanking.API.Controllers;
 
 [ApiController]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ProducesResponseType(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -35,6 +34,7 @@ public class AccountController : CustomControllerBase
     }
 
     [HttpPost]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
     [ProducesResponseType(typeof(AccountOwnedResponseModel), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateAccount(AccountCreationDto accountDto)
     {
@@ -44,7 +44,8 @@ public class AccountController : CustomControllerBase
         return HandleOperationResult(accountCreationResult);
     }
     
-    [HttpGet] //todo remove
+    [HttpGet]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
     [ProducesResponseType(typeof(IEnumerable<AccountOwnedResponseModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllAccounts()
     {
@@ -53,7 +54,8 @@ public class AccountController : CustomControllerBase
         return Ok(new Response<IEnumerable<AccountOwnedResponseModel>>(OperationStatus.Success, string.Empty, items));
     }
     
-    [HttpGet("{id}")] //todo remove
+    [HttpGet("{id}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ProducesResponseType(typeof(AccountOwnedResponseModel), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccount(string id)
     {
@@ -62,16 +64,8 @@ public class AccountController : CustomControllerBase
         return Ok(new Response<AccountOwnedResponseModel>(OperationStatus.Success, string.Empty, item));
     }
     
-    [HttpGet("owned/{ownerId}")] //todo remove
-    [ProducesResponseType(typeof(IEnumerable<AccountResponseModel>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCustomerAccounts(string ownerId)
-    {
-        var items = await _accountService.GetCustomerAccountsAsync(ownerId);
-        
-        return Ok(new Response<IEnumerable<AccountResponseModel>>(OperationStatus.Success, string.Empty, items));
-    }
-    
     [HttpGet("my")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
     [ProducesResponseType(typeof(IEnumerable<AccountResponseModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCustomerAccounts()
     {        
@@ -82,6 +76,7 @@ public class AccountController : CustomControllerBase
     }
     
     [HttpDelete("{accountId}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [TypeFilter(typeof(UserAccountCheckingActionFilterAttribute))]
     public async Task<IActionResult> DeleteAccount(string accountId)
