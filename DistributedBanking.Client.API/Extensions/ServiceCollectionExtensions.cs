@@ -178,6 +178,7 @@ public static class ServiceCollectionExtensions
         };
         ConventionRegistry.Register("CamelCase_StringEnum_IgnoreNull_Convention", pack, _ => true);
         
+        BsonSerializer.RegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         BsonSerializer.RegisterSerializer(new DateTimeSerializer(DateTimeKind.Utc));
 
