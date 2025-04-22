@@ -178,7 +178,10 @@ public static class ServiceCollectionExtensions
         };
         ConventionRegistry.Register("CamelCase_StringEnum_IgnoreNull_Convention", pack, _ => true);
         
-        BsonSerializer.RegisterSerializer(typeof(decimal), new DecimalSerializer(BsonType.Decimal128));
+        var objectSerializer = new ObjectSerializer(type => ObjectSerializer.DefaultAllowedTypes(type) || type.FullName.StartsWith("Shared.Data.Entities"));
+        BsonSerializer.RegisterSerializer(objectSerializer);
+        
+        BsonSerializer.RegisterSerializer(new DecimalSerializer(BsonType.Decimal128));
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         BsonSerializer.RegisterSerializer(new DateTimeSerializer(DateTimeKind.Utc));
 
