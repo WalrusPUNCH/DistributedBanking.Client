@@ -4,8 +4,10 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <RootNamespace>DistributedBanking.API</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RestoreUseLegacyDependencyResolver>true</RestoreUseLegacyDependencyResolver>
   </PropertyGroup>
 
   <ItemGroup>
