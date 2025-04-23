@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <RootNamespace>DistributedBanking.API</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RestoreUseLegacyDependencyResolver>true</RestoreUseLegacyDependencyResolver>
   </PropertyGroup>
 
   <ItemGroup>

@@ -44,7 +44,7 @@ public class IdentityController : CustomControllerBase
     
     [HttpPost("register/worker")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
+    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Administrator)]
     public async Task<IActionResult> RegisterWorker(WorkerRegistrationDto registrationDto)
     {
         var workerRegistrationResult = await _identityService.RegisterWorker(registrationDto.Adapt<WorkerRegistrationModel>(), RoleNames.Worker);
@@ -89,7 +89,7 @@ public class IdentityController : CustomControllerBase
     
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+   // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> Delete()
     {
         var userEmail = User.Email();
@@ -100,7 +100,7 @@ public class IdentityController : CustomControllerBase
     
     [HttpGet("customer/information")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+   // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
     public async Task<IActionResult> CustomerIdentityInformation()
     {
         var customerId = User.Id();
@@ -113,7 +113,7 @@ public class IdentityController : CustomControllerBase
     
     [HttpGet("worker/information")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = $"{RoleNames.Administrator}, {RoleNames.Worker}")]
+   // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = $"{RoleNames.Administrator}, {RoleNames.Worker}")]
     public async Task<IActionResult> WorkerIdentityInformation()
     {
         var workerId = User.Id();
@@ -126,7 +126,7 @@ public class IdentityController : CustomControllerBase
 
     [HttpPost("customer/update_passport")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
+   // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = RoleNames.Customer)]
     public async Task<IActionResult> UpdateCustomerPersonalInformation(CustomerPassportDto customerPassportDto)
     {
         var customerId = User.Id();

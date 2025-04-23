@@ -1,9 +1,12 @@
-FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 EXPOSE 80
 
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG ASPNETCORE_URLS=http://+:80
+ARG ASPNETCORE_HTTP_PORTS=80
+
 WORKDIR /src
 COPY ["DistributedBanking.Client.API/DistributedBanking.Client.API.csproj", "DistributedBanking.Client.API/"]
 COPY ["DistributedBanking.Client.Domain/DistributedBanking.Client.Domain.csproj", "DistributedBanking.Client.Domain/"]
